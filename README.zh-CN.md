@@ -79,18 +79,28 @@ pip install "codemap[dev] @ git+https://github.com/qxbyte/codemap.git"
 pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
 ```
 
-### 3. TypeScript 插件(子目录)
+### 3. 语言插件(子目录安装)
 
-TypeScript indexer 作为**独立包**放在 `plugins/codemap-typescript/`。
-从 GitHub 安装子目录需要用 `subdirectory=...` 语法:
+每个非 Python 的语言 indexer 都作为**独立 PyPI 包**放在 `plugins/`
+目录下。从 GitHub 安装子目录用 `subdirectory=...` URL 片段:
 
 ```bash
+# TypeScript / TSX
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript"
+
+# Java
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+
+# Go
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-go"
+
+# Rust
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
 ```
 
-插件本身依赖 `codemap`,如果没装主包,pip 会一起拉取。装好后
-`codemap doctor` 会立刻显示 `typescript` indexer —— 详见
-[写插件](#写插件)。
+每个插件都声明依赖 `codemap`,所以如果没装主包,pip 会一起拉取。
+装好后 `codemap doctor` 会列出所有已安装的插件,与内置 indexer
+**地位完全一致** —— 详见[写插件](#写插件)。
 
 ### 4. 本地克隆(开发模式)
 
@@ -101,8 +111,11 @@ cd codemap
 # 可编辑安装 + 完整开发工具链
 pip install -e ".[dev,watch]"
 
-# 同时启用 TS 插件
+# 可选:可编辑安装所有语言插件
 pip install -e plugins/codemap-typescript
+pip install -e plugins/codemap-java
+pip install -e plugins/codemap-go
+pip install -e plugins/codemap-rust
 ```
 
 ### 5. 系统要求
@@ -135,6 +148,9 @@ project_root: /your/path
 ┃ _example_lang │ 0.1.0   │ example    │ *.example     │
 ┃ python        │ 0.1.0   │ python     │ *.py, *.pyi   │
 ┃ typescript    │ 0.1.0   │ typescript │ *.ts, *.tsx   │
+┃ java          │ 0.1.0   │ java       │ *.java        │
+┃ go            │ 0.1.0   │ go         │ *.go          │
+┃ rust          │ 0.1.0   │ rust       │ *.rs          │
 
            Registered bridges
 ┃ name                 ┃ version ┃ requires ┃
@@ -214,7 +230,10 @@ bridges:
 | Indexer | 文件类型 | 提供方 | 状态 |
 |---|---|---|---|
 | `python` | `*.py`, `*.pyi` | 主仓库 | 首发实现,dogfooding |
-| `typescript` | `*.ts`, `*.tsx` | `plugins/codemap-typescript/` | 独立插件包 |
+| `typescript` | `*.ts`, `*.tsx` | [`plugins/codemap-typescript/`](plugins/codemap-typescript) | 独立插件包 |
+| `java` | `*.java` | [`plugins/codemap-java/`](plugins/codemap-java) | 独立插件包 |
+| `go` | `*.go` | [`plugins/codemap-go/`](plugins/codemap-go) | 独立插件包 |
+| `rust` | `*.rs` | [`plugins/codemap-rust/`](plugins/codemap-rust) | 独立插件包 |
 | `_example_lang` | `*.example` | 主仓库 | 参考实现 / 烟雾测试 |
 
 | Bridge | 作用 |

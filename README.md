@@ -86,20 +86,31 @@ pip install "codemap[dev] @ git+https://github.com/qxbyte/codemap.git"
 pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
 ```
 
-### 3. TypeScript plugin (subdirectory)
+### 3. Language plugins (subdirectory installs)
 
-The TypeScript indexer is shipped as an **independent package** at
-`plugins/codemap-typescript/`. GitHub installs of a subdirectory use
-the `subdirectory=...` syntax:
+Each non-Python language indexer is shipped as an **independent PyPI
+package** under `plugins/`. GitHub installs of a subdirectory use the
+`subdirectory=...` URL fragment:
 
 ```bash
+# TypeScript / TSX
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript"
+
+# Java
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+
+# Go
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-go"
+
+# Rust
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
 ```
 
-The plugin declares `codemap` as a dependency, so pip will pull the
-main package if it isn't installed yet. After installation, `codemap
-doctor` lists `typescript` alongside the built-in indexers — see
-[Writing a plugin](#writing-a-plugin) for the design.
+Each plugin declares `codemap` as a dependency, so pip will pull the
+main package if you don't already have it. After installation, `codemap
+doctor` lists every installed plugin alongside the built-in indexers on
+identical terms — see [Writing a plugin](#writing-a-plugin) for the
+design.
 
 ### 4. Local clone (development)
 
@@ -110,8 +121,11 @@ cd codemap
 # Editable install with all dev tooling
 pip install -e ".[dev,watch]"
 
-# Optionally also install the TS plugin in editable mode
+# Optionally install language plugins in editable mode
 pip install -e plugins/codemap-typescript
+pip install -e plugins/codemap-java
+pip install -e plugins/codemap-go
+pip install -e plugins/codemap-rust
 ```
 
 ### 5. System requirements
@@ -144,6 +158,9 @@ project_root: /your/path
 ┃ _example_lang │ 0.1.0   │ example    │ *.example     │
 ┃ python        │ 0.1.0   │ python     │ *.py, *.pyi   │
 ┃ typescript    │ 0.1.0   │ typescript │ *.ts, *.tsx   │
+┃ java          │ 0.1.0   │ java       │ *.java        │
+┃ go            │ 0.1.0   │ go         │ *.go          │
+┃ rust          │ 0.1.0   │ rust       │ *.rs          │
 
            Registered bridges
 ┃ name                 ┃ version ┃ requires ┃
@@ -226,7 +243,10 @@ file contributed each value.
 | Indexer | Files | Provided by | Status |
 |---|---|---|---|
 | `python` | `*.py`, `*.pyi` | main repo | first-class, dogfooded |
-| `typescript` | `*.ts`, `*.tsx` | `plugins/codemap-typescript/` | independent plugin |
+| `typescript` | `*.ts`, `*.tsx` | [`plugins/codemap-typescript/`](plugins/codemap-typescript) | independent plugin |
+| `java` | `*.java` | [`plugins/codemap-java/`](plugins/codemap-java) | independent plugin |
+| `go` | `*.go` | [`plugins/codemap-go/`](plugins/codemap-go) | independent plugin |
+| `rust` | `*.rs` | [`plugins/codemap-rust/`](plugins/codemap-rust) | independent plugin |
 | `_example_lang` | `*.example` | main repo | reference / smoke |
 
 | Bridge | Purpose |

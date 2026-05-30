@@ -8,6 +8,36 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Java, Go, Rust independent PyPI plugins (2026-05-30)
+
+- `plugins/codemap-java/` — Java indexer backed by `tree-sitter-java`.
+  Captures class / interface / enum / record / method / constructor /
+  field declarations, honours `package` declarations as `extra.package`,
+  and walks nested types via a class stack. SCIP scheme `scip-java`.
+  14 unit tests.
+- `plugins/codemap-go/` — Go indexer backed by `tree-sitter-go`.
+  Captures function / method (receiver-aware) / struct / interface /
+  type / const / var declarations. `func (u *User) Login()` produces
+  `scip-go . . . main.go/User#Login().` so both value and pointer
+  receivers feed into the same `User#…` namespace. 13 unit tests.
+- `plugins/codemap-rust/` — Rust indexer backed by `tree-sitter-rust`.
+  Captures free functions, methods inside `impl` (both inherent and
+  `impl Trait for Type`) attached to the impl'd type, trait method
+  signatures attached to the trait, plus struct / enum / trait / const /
+  static items. SCIP scheme `scip-rust`. 13 unit tests.
+- Each plugin ships with its own `pyproject.toml`, `README.md`,
+  `src/codemap_<lang>/`, and `tests/`, depends only on `codemap +
+  tree-sitter-<lang>`, and registers its indexer through the
+  `codemap.indexers` entry-point group — identical mechanism to the
+  built-in Python indexer and the previously shipped
+  `codemap-typescript` plugin.
+- README (both English and Simplified Chinese) updated with subdirectory
+  install commands for all four language plugins and the updated
+  `codemap doctor` indexer table.
+- End-to-end smoke test on a 5-language fixture (Java + Go + Rust + TS +
+  Python User class): 13 symbols emitted across 5 schemes, all bridges
+  ran successfully, 0 diagnostics.
+
 ### Added — TypeScript indexer as an independent PyPI plugin (2026-05-30)
 
 - New `plugins/codemap-typescript/` package: a fully independent
