@@ -87,6 +87,23 @@ Two modes:
 The `--depth` cap applies *per side* during bidirectional search, so a
 value of `N` can find paths up to `2N` hops long.
 
+### `codemap diagnostics [--severity S] [--producer P] [--code C] [--limit N] [--project PATH]`
+
+List the diagnostics recorded during the last `codemap index`. Each
+filter is additive; the output shows how many entries match and how many
+are displayed after truncation.
+
+```
+$ codemap diagnostics --severity warning
+Showing 2 of 2 matched (4 total)
+severity  code      producer    location          message
+warning   PY002     python      b.py              not valid UTF-8
+warning   ROUTE001  http_route  server.py         multiple handlers for GET /api/x
+```
+
+`--json` produces a `{ total, matched, shown, filters, results }`
+envelope so CI dashboards can plot trends.
+
 ### `codemap routes [--method METHOD] [--project PATH]`
 
 Lists every HTTP route registered by the `http_route` bridge. With

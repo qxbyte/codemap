@@ -5,6 +5,9 @@ Reads global options, sets up logging, dispatches to per-command modules.
 
 from __future__ import annotations
 
+import os
+import sys
+import traceback
 from typing import Annotated
 
 import typer
@@ -13,12 +16,15 @@ from codemap import __version__
 from codemap.cli.commands import callees as callees_cmd
 from codemap.cli.commands import callers as callers_cmd
 from codemap.cli.commands import config as config_cmd
+from codemap.cli.commands import diagnostics as diagnostics_cmd
 from codemap.cli.commands import doctor as doctor_cmd
 from codemap.cli.commands import get as get_cmd
 from codemap.cli.commands import index as index_cmd
 from codemap.cli.commands import routes as routes_cmd
 from codemap.cli.commands import search as search_cmd
 from codemap.cli.commands import trace as trace_cmd
+from codemap.cli.renderers import text
+from codemap.diagnostics.exit_codes import ExitCode
 from codemap.diagnostics.logging import LogFormat, configure_logging
 
 app = typer.Typer(
@@ -93,10 +99,41 @@ callees_cmd.register(app)
 trace_cmd.register(app)
 routes_cmd.register(app)
 config_cmd.register(app)
+diagnostics_cmd.register(app)
 
 
-def main() -> None:  # pragma: no cover - thin wrapper
-    app()
+_ISSUE_TRACKER = "https://github.com/qxbyte/codemap/issues"
+_TRACEBACK_ENV_VAR = "CODEMAP_FULL_TRACEBACK"
+
+
+def main() -> None:
+    """Entry point. Catches anything Typer doesn't and prints a friendly hint.
+
+    Set ``CODEMAP_FULL_TRACEBACK=1`` to see the original traceback (useful
+    when filing a bug).
+    """
+    try:
+        app()
+    except (typer.Exit, SystemExit, KeyboardInterrupt):
+        raise
+    except Exception as exc:  # pragma: no cover - exercised manually
+        cons = text.console(stderr=True)
+        cons.print(
+            f"[bold red]Internal error:[/bold red] "
+            f"{type(exc).__name__}: {exc}\n"
+            f"This is a bug in CodeMap. Please file an issue at\n"
+            f"  [cyan]{_ISSUE_TRACKER}[/cyan]\n"
+            f"and include the output of `codemap --version` and the command "
+            f"you ran."
+        )
+        if os.environ.get(_TRACEBACK_ENV_VAR):
+            cons.print("[dim]" + traceback.format_exc() + "[/dim]")
+        else:
+            cons.print(
+                f"[dim]Set {_TRACEBACK_ENV_VAR}=1 to see the full "
+                f"traceback when filing the issue.[/dim]"
+            )
+        sys.exit(int(ExitCode.INTERNAL_BUG))
 
 
 if __name__ == "__main__":  # pragma: no cover

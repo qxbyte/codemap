@@ -24,6 +24,7 @@ from codemap.config.schema import DEFAULT_PRUNE_DIRS
 from codemap.core.bridge.registry import get_registry as get_bridges
 from codemap.core.models import (
     BridgeEntry,
+    Diagnostic,
     FileEntry,
     IndexerEntry,
     Manifest,
@@ -58,6 +59,13 @@ def register(app: typer.Typer) -> None:
             bool,
             typer.Option("--rebuild", help="Discard any existing `.codemap/` and rebuild."),
         ] = False,
+        dry_run: Annotated[
+            bool,
+            typer.Option(
+                "--dry-run",
+                help="Scan and report what would be indexed, but do not write to disk.",
+            ),
+        ] = False,
         no_progress: Annotated[
             bool,
             typer.Option("--no-progress", help="Disable the progress bar."),
@@ -81,6 +89,11 @@ def register(app: typer.Typer) -> None:
             _die_no_indexers(as_json)
 
         files = _collect_files(path, indexer_list, config)
+
+        if dry_run:
+            _emit_dry_run(as_json, path, files, indexer_list, config)
+            return
+
         stats = _IndexStats()
         with JsonStore.open(codemap_dir) as store:
             with progress_bar("Indexing", total=len(files), enabled=not no_progress) as bar:
@@ -239,6 +252,18 @@ def _index_one(
         source = file_path.read_bytes()
     except OSError as exc:
         logger.warning("cannot read %s: %s", file_path, exc)
+        store.upsert_diagnostics(
+            [
+                Diagnostic(
+                    severity="error",
+                    file=rel,
+                    code="IO001",
+                    message=f"cannot read file: {exc}",
+                    producer="codemap.index",
+                )
+            ]
+        )
+        stats.diagnostics += 1
         return
 
     digest = hashlib.sha256(source).hexdigest()
@@ -251,8 +276,20 @@ def _index_one(
         )
         try:
             result = ix.index_file(file_path, source, ctx)
-        except Exception:
+        except Exception as exc:
             logger.exception("indexer %s failed on %s", ix.name, file_path)
+            store.upsert_diagnostics(
+                [
+                    Diagnostic(
+                        severity="error",
+                        file=rel,
+                        code="INDEXER_CRASH",
+                        message=_short_exception_message(ix.name, exc),
+                        producer=ix.name,
+                    )
+                ]
+            )
+            stats.diagnostics += 1
             continue
         store.upsert_symbols(result.symbols)
         store.upsert_edges(result.edges)
@@ -285,8 +322,20 @@ def _run_bridges(store: JsonStore, stats: _IndexStats, config: Config) -> None:
     for b in bridges:
         try:
             result = b.resolve(store)
-        except Exception:
+        except Exception as exc:
             logger.exception("bridge %s failed", b.name)
+            store.upsert_diagnostics(
+                [
+                    Diagnostic(
+                        severity="error",
+                        file=PurePosixPath("."),
+                        code="BRIDGE_CRASH",
+                        message=_short_exception_message(b.name, exc),
+                        producer=b.name,
+                    )
+                ]
+            )
+            stats.diagnostics += 1
             continue
         store.upsert_edges(result.edges)
         store.upsert_aliases(result.aliases)
@@ -328,6 +377,54 @@ def _remove_index(codemap_dir: Path) -> None:
     import shutil
 
     shutil.rmtree(codemap_dir, ignore_errors=False)
+
+
+def _short_exception_message(producer: str, exc: BaseException) -> str:
+    """One-line summary of an exception suitable for a Diagnostic."""
+    return f"{producer} crashed: {type(exc).__name__}: {exc!s}"[:512]
+
+
+def _emit_dry_run(
+    as_json: bool,
+    project_path: Path,
+    files: list[Path],
+    indexers: list[Indexer],
+    config: Config,
+) -> None:
+    """Report what `codemap index` would do without writing anything."""
+    per_indexer: dict[str, int] = {ix.name: 0 for ix in indexers}
+    enabled_names = {ix.name for ix in indexers}
+    for f in files:
+        ix_registry = get_indexers()
+        for ix in ix_registry.for_path(f):
+            if ix.name in enabled_names:
+                per_indexer[ix.name] += 1
+    if as_json:
+        json_renderer.emit(
+            "index",
+            {
+                "dry_run": True,
+                "project_root": str(project_path),
+                "files_matched": len(files),
+                "per_indexer": per_indexer,
+                "indexers_enabled": list(enabled_names),
+                "bridges_enabled": [b.name for b in _select_bridges(config)],
+            },
+        )
+        return
+    cons = text.console()
+    cons.print(
+        f"[bold]Dry-run[/bold]: would index "
+        f"[green]{len(files)}[/green] files into {project_path / CODEMAP_DIR}"
+    )
+    if files:
+        cons.print(
+            text.table(
+                "Per indexer",
+                ["indexer", "files"],
+                [[name, str(count)] for name, count in sorted(per_indexer.items())],
+            )
+        )
 
 
 def _die_no_indexers(as_json: bool) -> None:
