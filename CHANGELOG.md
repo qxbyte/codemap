@@ -8,6 +8,30 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — TypeScript indexer as an independent PyPI plugin (2026-05-30)
+
+- New `plugins/codemap-typescript/` package: a fully independent
+  Python distribution implementing the `Indexer` Protocol for
+  TypeScript / TSX. Backed by `tree-sitter-typescript`. Recognises
+  `function_declaration`, `class_declaration`, `interface_declaration`,
+  `method_definition`, module-level `lexical_declaration` (const/let),
+  and `import_statement`. SCIP scheme `scip-typescript`.
+- The plugin lives in its own directory with its own `pyproject.toml`,
+  `README.md`, `src/codemap_typescript/`, and tests. It declares one
+  entry-point — `codemap.indexers.typescript = codemap_typescript:Type
+  ScriptIndexer` — and that single line is the only coupling to the host
+  CodeMap repo. After `pip install -e plugins/codemap-typescript/`,
+  `codemap doctor` lists `typescript` next to the built-in `python` and
+  `_example_lang` indexers on **identical terms** (ADR-004 + ADR-L001).
+- 14 plugin-local unit tests cover the indexer's symbol generation,
+  scheme consistency, TSX support, syntax-error and invalid-UTF8
+  diagnostics, and the nested-class case.
+- New `docs/plugin-guide.md` walks third-party authors through the
+  process step by step using the TypeScript plugin as the reference.
+- End-to-end smoke test against a sample TS + TSX project: 9 symbols
+  emitted across function / class / interface / method / variable
+  kinds; both `.ts` and `.tsx` file patterns work.
+
 ### Added — Incremental + watch (2026-05-30)
 
 - `codemap index --incremental` compares each file's sha256 against the
