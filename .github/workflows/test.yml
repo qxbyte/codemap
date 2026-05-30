@@ -26,6 +26,10 @@ jobs:
         with:
           version: latest
           enable-cache: true
+          # We don't commit `uv.lock`; key the cache on pyproject.toml instead
+          # (the default `**/uv.lock` glob fails the action when no lockfile
+          # exists in the checkout).
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Install Python ${{ matrix.python }}
         run: uv python install ${{ matrix.python }}
