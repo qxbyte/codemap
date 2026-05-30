@@ -330,17 +330,37 @@ def test_load_rejects_incompatible_schema(tmp_path: Path) -> None:
         JsonStore.open(tmp_path)
 
 
-def test_load_rejects_high_dangling_ratio(tmp_path: Path) -> None:
+def test_load_rejects_high_dangling_source_ratio(tmp_path: Path) -> None:
+    """A missing edge ``source`` is corruption: the indexer emitted an edge
+    from a symbol it never registered. Missing ``target`` is a legitimate
+    external reference and must NOT be flagged.
+    """
     foo = _make_symbol("scip-python . . . src/foo.py/A#")
+    ghost = SymbolID.parse("scip-python . . . src/ghost.py/X#")
     with JsonStore.open(tmp_path) as store:
         store.upsert_symbols([foo])
-        # Inject an edge whose target doesn't exist
-        ghost = SymbolID.parse("scip-python . . . src/ghost.py/X#")
-        store.upsert_edges([Edge(source=foo.id, target=ghost, kind="calls")])
+        # Source is the ghost (never registered) → integrity violation.
+        store.upsert_edges([Edge(source=ghost, target=foo.id, kind="calls")])
         store.set_manifest(_make_manifest())
         store.commit()
     with pytest.raises(IntegrityError):
         JsonStore.open(tmp_path)
+
+
+def test_load_accepts_dangling_targets(tmp_path: Path) -> None:
+    """Targets pointing at unindexed external symbols are normal — local
+    code calling third-party libraries we did not index.
+    """
+    foo = _make_symbol("scip-python . . . src/foo.py/A#")
+    external = SymbolID.parse("scip-python . . . typer/echo().")
+    with JsonStore.open(tmp_path) as store:
+        store.upsert_symbols([foo])
+        store.upsert_edges([Edge(source=foo.id, target=external, kind="calls")])
+        store.set_manifest(_make_manifest())
+        store.commit()
+    # Should NOT raise — reopening must succeed.
+    with JsonStore.open(tmp_path, mode="r") as store:
+        assert list(store.iter_edges())
 
 
 # ---------------------------------------------------------------------------

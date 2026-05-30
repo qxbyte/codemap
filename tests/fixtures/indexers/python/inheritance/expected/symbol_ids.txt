@@ -1,0 +1,7 @@
+scip-python . . . shapes.py/Drawable#
+scip-python . . . shapes.py/Drawable#draw().
+scip-python . . . shapes.py/Shape#
+scip-python . . . shapes.py/Shape#area().
+scip-python . . . shapes.py/Sprite#
+scip-python . . . shapes.py/Square#
+scip-python . . . shapes.py/Square#area().

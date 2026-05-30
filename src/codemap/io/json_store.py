@@ -175,9 +175,16 @@ class JsonStore:
             raise IntegrityError(f"{name} is not valid JSON: {exc}") from exc
 
     def _count_dangling(self) -> int:
+        """Count edges whose ``source`` is not in the local symbol table.
+
+        ``target`` is allowed to be missing — that's the normal case for
+        external references (calls into a third-party library that this
+        index doesn't cover). A missing ``source``, in contrast, means
+        the indexer emitted an edge from a symbol it forgot to register.
+        """
         n = 0
         for e in self._edges:
-            if str(e.source) not in self._symbols or str(e.target) not in self._symbols:
+            if str(e.source) not in self._symbols:
                 n += 1
         return n
 

@@ -134,3 +134,36 @@ def test_doctor_after_index_status_ok(smoke_project: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["result"]["index"]["status"] == "ok"
     assert payload["result"]["index"]["info"]["symbol_count"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# Python indexer end-to-end
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def python_project(tmp_path: Path) -> Path:
+    proj = tmp_path / "py_proj"
+    proj.mkdir()
+    (proj / "main.py").write_text(
+        "def helper():\n    return 1\n\ndef entry():\n    return helper()\n"
+    )
+    return proj
+
+
+def test_index_python_project_via_cli(python_project: Path) -> None:
+    result = runner.invoke(app, ["--json", "index", str(python_project)])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    res = payload["result"]
+    assert res["files_indexed"] == 1
+    assert res["symbols"] >= 2  # helper + entry
+    assert res["edges"] >= 1  # entry -> helper
+
+
+def test_doctor_lists_python_indexer(python_project: Path) -> None:
+    result = runner.invoke(app, ["--json", "doctor", str(python_project)])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    names = [ix["name"] for ix in payload["result"]["indexers"]]
+    assert "python" in names

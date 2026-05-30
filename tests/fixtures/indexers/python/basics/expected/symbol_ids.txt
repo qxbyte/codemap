@@ -1,0 +1,6 @@
+scip-python . . . pkg/mod.py/Counter#
+scip-python . . . pkg/mod.py/Counter#INITIAL.
+scip-python . . . pkg/mod.py/Counter#__init__().
+scip-python . . . pkg/mod.py/Counter#inc().
+scip-python . . . pkg/mod.py/MAX_RETRIES.
+scip-python . . . pkg/mod.py/add().

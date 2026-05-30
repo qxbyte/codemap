@@ -54,6 +54,7 @@ Issues = "https://github.com/qxbyte/codemap/issues"
 # Built-in indexers register here on equal footing with third-party plugins.
 # (No language is privileged; see ADR-L001.)
 _example_lang = "codemap.indexers._example_lang:ExampleLangIndexer"
+python = "codemap.indexers.python:PythonIndexer"
 
 [project.entry-points."codemap.bridges"]
 # Built-in bridges register here on equal footing with third-party plugins.
