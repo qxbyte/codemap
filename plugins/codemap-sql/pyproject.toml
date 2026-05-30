@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codemap-sql"
+version = "0.1.0"
+description = "SQL indexer plugin for CodeMap"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "CodeMap Contributors" }]
+keywords = ["codemap", "sql", "indexer", "tree-sitter"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: SQL",
+    "Topic :: Software Development",
+    "Topic :: Database",
+]
+dependencies = [
+    "codemap",
+    "tree-sitter>=0.25",
+    "tree-sitter-sql>=0.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.entry-points."codemap.indexers"]
+sql = "codemap_sql:SqlIndexer"
+
+[project.urls]
+Homepage = "https://github.com/qxbyte/codemap"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codemap_sql"]

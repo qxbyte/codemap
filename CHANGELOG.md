@@ -8,6 +8,33 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Fixed — CI: `astral-sh/setup-uv@v3` fails without `uv.lock` (2026-05-30)
+
+- Both `test.yml` and `bench.yml` workflows enabled `cache: true` on
+  `setup-uv@v3`, which defaults its dependency glob to `**/uv.lock`.
+  We don't commit a lockfile yet, so the action failed with
+  *"No file in ... matched to [**/uv.lock]"* before any tests ran.
+- Set `cache-dependency-glob: "pyproject.toml"` so the cache keys on a
+  file that actually exists. No effect on local development.
+
+### Added — SQL (DDL) and Bash independent PyPI plugins (2026-05-30)
+
+- `plugins/codemap-sql/` — `tree-sitter-sql` backed. DDL only: emits
+  `class` symbols for `CREATE TABLE` / `CREATE VIEW`, `variable`
+  symbols for `CREATE INDEX`, and `field` symbols for each
+  `column_definition` attached to the parent table.
+  `SELECT`/`INSERT`/`UPDATE`/`DELETE` are intentionally ignored.
+  13 unit tests. Scheme `scip-sql`. Files: `*.sql`, `*.ddl`.
+- `plugins/codemap-bash/` — `tree-sitter-bash` backed. Captures
+  `function_definition`, top-level `variable_assignment`, and
+  `declaration_command` keywords (`readonly` / `declare` / `export` /
+  `local` / `typeset`) tagged via `extra.bash_kind`. Function-internal
+  state is deliberately not surfaced. Extensionless files with a bash
+  shebang are also accepted via `supports()`. 14 unit tests. Scheme
+  `scip-bash`. Files: `*.sh`, `*.bash`, `*.bats`.
+- README (both languages) updated with the two new install commands,
+  the bigger doctor table, and the longer indexer reference table.
+
 ### Added — Swift, Kotlin, Ruby, PHP independent PyPI plugins (2026-05-30)
 
 - `plugins/codemap-swift/` — `tree-sitter-swift` backed. Class / struct /

@@ -108,6 +108,12 @@ pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/code
 
 # PHP
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
+
+# SQL(仅 DDL)
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-sql"
+
+# Bash / shell 脚本
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
 ```
 
 每个插件都声明依赖 `codemap`,所以如果没装主包,pip 会一起拉取。
@@ -132,6 +138,8 @@ pip install -e plugins/codemap-swift
 pip install -e plugins/codemap-kotlin
 pip install -e plugins/codemap-ruby
 pip install -e plugins/codemap-php
+pip install -e plugins/codemap-sql
+pip install -e plugins/codemap-bash
 ```
 
 ### 5. 系统要求
@@ -171,6 +179,8 @@ project_root: /your/path
 ┃ kotlin        │ 0.1.0   │ kotlin     │ *.kt, *.kts   │
 ┃ ruby          │ 0.1.0   │ ruby       │ *.rb          │
 ┃ php           │ 0.1.0   │ php        │ *.php         │
+┃ sql           │ 0.1.0   │ sql        │ *.sql, *.ddl  │
+┃ bash          │ 0.1.0   │ bash       │ *.sh, *.bash, *.bats │
 
            Registered bridges
 ┃ name                 ┃ version ┃ requires ┃
@@ -258,6 +268,8 @@ bridges:
 | `kotlin` | `*.kt`, `*.kts` | [`plugins/codemap-kotlin/`](plugins/codemap-kotlin) | 独立插件包 |
 | `ruby` | `*.rb` | [`plugins/codemap-ruby/`](plugins/codemap-ruby) | 独立插件包 |
 | `php` | `*.php` | [`plugins/codemap-php/`](plugins/codemap-php) | 独立插件包 |
+| `sql` | `*.sql`, `*.ddl` | [`plugins/codemap-sql/`](plugins/codemap-sql) | 独立插件包(仅 DDL) |
+| `bash` | `*.sh`, `*.bash`, `*.bats` | [`plugins/codemap-bash/`](plugins/codemap-bash) | 独立插件包 |
 | `_example_lang` | `*.example` | 主仓库 | 参考实现 / 烟雾测试 |
 
 | Bridge | 作用 |

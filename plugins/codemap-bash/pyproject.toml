@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codemap-bash"
+version = "0.1.0"
+description = "Bash / shell-script indexer plugin for CodeMap"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "CodeMap Contributors" }]
+keywords = ["codemap", "bash", "shell", "indexer", "tree-sitter"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Unix Shell",
+    "Topic :: Software Development",
+    "Topic :: System :: Shells",
+]
+dependencies = [
+    "codemap",
+    "tree-sitter>=0.25",
+    "tree-sitter-bash>=0.25",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.entry-points."codemap.indexers"]
+bash = "codemap_bash:BashIndexer"
+
+[project.urls]
+Homepage = "https://github.com/qxbyte/codemap"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codemap_bash"]

@@ -116,6 +116,12 @@ pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/code
 
 # PHP
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
+
+# SQL (DDL)
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-sql"
+
+# Bash / shell scripts
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
 ```
 
 Each plugin declares `codemap` as a dependency, so pip will pull the
@@ -142,6 +148,8 @@ pip install -e plugins/codemap-swift
 pip install -e plugins/codemap-kotlin
 pip install -e plugins/codemap-ruby
 pip install -e plugins/codemap-php
+pip install -e plugins/codemap-sql
+pip install -e plugins/codemap-bash
 ```
 
 ### 5. System requirements
@@ -181,6 +189,8 @@ project_root: /your/path
 ┃ kotlin        │ 0.1.0   │ kotlin     │ *.kt, *.kts   │
 ┃ ruby          │ 0.1.0   │ ruby       │ *.rb          │
 ┃ php           │ 0.1.0   │ php        │ *.php         │
+┃ sql           │ 0.1.0   │ sql        │ *.sql, *.ddl  │
+┃ bash          │ 0.1.0   │ bash       │ *.sh, *.bash, *.bats │
 
            Registered bridges
 ┃ name                 ┃ version ┃ requires ┃
@@ -271,6 +281,8 @@ file contributed each value.
 | `kotlin` | `*.kt`, `*.kts` | [`plugins/codemap-kotlin/`](plugins/codemap-kotlin) | independent plugin |
 | `ruby` | `*.rb` | [`plugins/codemap-ruby/`](plugins/codemap-ruby) | independent plugin |
 | `php` | `*.php` | [`plugins/codemap-php/`](plugins/codemap-php) | independent plugin |
+| `sql` | `*.sql`, `*.ddl` | [`plugins/codemap-sql/`](plugins/codemap-sql) | independent plugin (DDL only) |
+| `bash` | `*.sh`, `*.bash`, `*.bats` | [`plugins/codemap-bash/`](plugins/codemap-bash) | independent plugin |
 | `_example_lang` | `*.example` | main repo | reference / smoke |
 
 | Bridge | Purpose |
