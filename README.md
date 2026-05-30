@@ -14,6 +14,11 @@ index path.
 **Status**: Alpha. The CLI is usable today; PyPI release is not yet
 published, so install directly from this repository.
 
+> 👉 **In a hurry?** The [`INSTALL.md`](./INSTALL.md) guide is the
+> definitive walkthrough — it covers `pipx` / `uv tool` / `pip`,
+> language-plugin injection, offline distribution, troubleshooting, and
+> a verbatim clean-machine validation log.
+
 ---
 
 ## Table of contents

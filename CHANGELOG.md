@@ -8,6 +8,26 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Bilingual `INSTALL.md` install guide (2026-05-30)
+
+- New `INSTALL.md` (English) and `INSTALL.zh-CN.md` (Simplified
+  Chinese) walk through `pipx` / `uv tool` / `pip` installation paths
+  for the main CLI, then `pipx inject` / `uv tool inject` / `pip
+  install` for the 14 language plugins. Covers the `[watch]` extra,
+  offline wheel-bundle distribution, upgrade/uninstall, and a
+  troubleshooting matrix for the common gotchas (Python < 3.11,
+  `command not found`, plugin not discovered, slow first install,
+  `tree-sitter-*` build failures, partial plugin removal).
+- Both files end with a verbatim **validation log** captured on a
+  fresh Python 3.12 virtualenv on 2026-05-30 against
+  [`c4cd436`](https://github.com/qxbyte/codemap/commit/c4cd436):
+  install (2 m 05 s), `doctor` on a clean install (2 indexers, 2
+  bridges), Java plugin inject (15.6 s, auto-discovered), index a
+  mixed Java + Python fixture (6 symbols, 1 route, 0 diagnostics),
+  and `--json` output for AI agents.
+- Both `README.md` and `README.zh-CN.md` now link to the install
+  guide near the top, ahead of their own (lighter) install sections.
+
 ### Added — C / C++ / C# / Scala independent PyPI plugins (2026-05-30)
 
 - `plugins/codemap-c/` — `tree-sitter-c` backed. Captures

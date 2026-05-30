@@ -1,0 +1,563 @@
+# Installation Guide
+
+**English** · [简体中文](./INSTALL.zh-CN.md)
+
+> The commands in this document were executed end-to-end on a fresh
+> Python 3.12 virtual environment on 2026-05-30 against
+> [`qxbyte/codemap@main`](https://github.com/qxbyte/codemap). The
+> [Validation log](#7-validation-log) at the end of this document is a
+> verbatim transcript of that run.
+
+---
+
+## Table of contents
+
+- [TL;DR](#tldr)
+- [1. Requirements](#1-requirements)
+- [2. Install the main CLI](#2-install-the-main-cli)
+- [3. Verify](#3-verify)
+- [4. Add language plugins](#4-add-language-plugins)
+- [5. First-time usage](#5-first-time-usage)
+- [6. Upgrade and uninstall](#6-upgrade-and-uninstall)
+- [7. Validation log](#7-validation-log)
+- [8. Offline distribution](#8-offline-distribution)
+- [9. Troubleshooting](#9-troubleshooting)
+
+---
+
+## TL;DR
+
+```bash
+# 1. Install pipx (one-time, system-wide)
+brew install pipx && pipx ensurepath          # macOS
+# or:  python3 -m pip install --user pipx && pipx ensurepath  (Linux)
+
+# 2. Install the main CLI
+pipx install git+https://github.com/qxbyte/codemap.git
+
+# 3. Inject any language plugins you need
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+
+# 4. Use it
+cd ~/your-project
+codemap index .
+codemap doctor
+codemap routes
+```
+
+That's it. The rest of this document is a longer explanation of the
+same steps and the alternative install paths.
+
+---
+
+## 1. Requirements
+
+| Item | Requirement | Notes |
+|---|---|---|
+| Python | **≥ 3.11** | Development happens on 3.13. macOS' system `python3` is often 3.9 — install a newer one before continuing. |
+| OS | macOS / Linux | Windows works for indexing; `--watch` falls back to polling. |
+| Network | Required **only at install time** | To clone the repo and fetch `tree-sitter-*` binary wheels. The index itself runs fully offline. |
+| Disk | ~30 MB main CLI + ~1–5 MB per language plugin | Negligible. |
+
+Check your Python:
+
+```bash
+python3 --version
+# If this prints anything below 3.11, install a newer Python first:
+#   macOS:  brew install python@3.12
+#   Linux:  use your package manager (apt install python3.12, etc.)
+#   Cross-platform:  pyenv install 3.12.7 / uv python install 3.12
+```
+
+---
+
+## 2. Install the main CLI
+
+CodeMap is not yet on PyPI; install directly from the GitHub repository.
+Pick one of three paths:
+
+### 2.1 With `pipx` (recommended)
+
+`pipx` isolates each tool in its own virtualenv and puts the
+`codemap` command on your `$PATH` — exactly what you want for a CLI.
+
+```bash
+pipx install git+https://github.com/qxbyte/codemap.git
+```
+
+Pin to a specific commit for a reproducible install:
+
+```bash
+pipx install "git+https://github.com/qxbyte/codemap.git@<commit-sha>"
+```
+
+### 2.2 With `uv tool`
+
+Same isolation model as `pipx`, but faster:
+
+```bash
+uv tool install git+https://github.com/qxbyte/codemap.git
+```
+
+### 2.3 With plain `pip` (not recommended)
+
+Pollutes whatever environment is active. Use only inside a virtualenv
+you fully control:
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install git+https://github.com/qxbyte/codemap.git
+```
+
+### 2.4 Optional extras
+
+```bash
+# `codemap index --watch` needs watchdog
+pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
+
+# Development tooling (pytest, ruff, mypy, import-linter, pytest-benchmark)
+pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[dev]"
+```
+
+---
+
+## 3. Verify
+
+```bash
+codemap --version
+# → 0.1.0
+
+codemap --help        # global flags and subcommand list
+
+cd /tmp/empty-dir     # any directory without a .codemap/
+codemap doctor
+```
+
+A clean install (no language plugins yet) shows **2 indexers** and
+**2 bridges**:
+
+```
+                  Registered indexers
+┃ name          ┃ version ┃ languages ┃ file_patterns ┃
+│ _example_lang │ 0.1.0   │ example   │ *.example     │
+│ python        │ 0.1.0   │ python    │ *.py, *.pyi   │
+
+             Registered bridges
+┃ name                ┃ version ┃ requires ┃
+│ http_route          │ 0.1.0   │ -        │
+│ python_cross_module │ 0.1.0   │ -        │
+```
+
+> `_example_lang` is a reference implementation for plugin authors —
+> it parses `*.example` files and exists primarily to keep the plugin
+> contract honest. You can ignore it in real use.
+
+---
+
+## 4. Add language plugins
+
+Each non-Python language indexer ships as an **independent PyPI
+package** under `plugins/`. Installing one adds its grammar; it's
+auto-discovered via `entry_points` — no configuration files to edit.
+
+### 4.1 Available plugins
+
+| Language | Subdirectory | File patterns | Backed by |
+|---|---|---|---|
+| TypeScript / TSX | `plugins/codemap-typescript` | `*.ts`, `*.tsx` | `tree-sitter-typescript` |
+| Java | `plugins/codemap-java` | `*.java` | `tree-sitter-java` |
+| Go | `plugins/codemap-go` | `*.go` | `tree-sitter-go` |
+| Rust | `plugins/codemap-rust` | `*.rs` | `tree-sitter-rust` |
+| Swift | `plugins/codemap-swift` | `*.swift` | `tree-sitter-swift` |
+| Kotlin | `plugins/codemap-kotlin` | `*.kt`, `*.kts` | `tree-sitter-kotlin` |
+| Ruby | `plugins/codemap-ruby` | `*.rb` | `tree-sitter-ruby` |
+| PHP | `plugins/codemap-php` | `*.php` | `tree-sitter-php` |
+| SQL (DDL) | `plugins/codemap-sql` | `*.sql`, `*.ddl` | `tree-sitter-sql` |
+| Bash | `plugins/codemap-bash` | `*.sh`, `*.bash`, `*.bats` | `tree-sitter-bash` |
+| C | `plugins/codemap-c` | `*.c`, `*.h` | `tree-sitter-c` |
+| C++ | `plugins/codemap-cpp` | `*.cpp`, `*.cc`, `*.cxx`, `*.hpp`, `*.hh`, `*.hxx` | `tree-sitter-cpp` |
+| C# | `plugins/codemap-csharp` | `*.cs`, `*.csx` | `tree-sitter-c-sharp` |
+| Scala | `plugins/codemap-scala` | `*.scala`, `*.sc` | `tree-sitter-scala` |
+
+### 4.2 With `pipx inject` (recommended)
+
+`pipx inject` puts the plugin into the same isolated environment as
+the main CLI:
+
+```bash
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-go"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-swift"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-kotlin"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-ruby"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-sql"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-c"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-cpp"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-csharp"
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-scala"
+```
+
+### 4.3 With `uv tool inject`
+
+```bash
+uv tool inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+```
+
+### 4.4 With plain `pip`
+
+If you installed via `pip` into an active virtualenv, install plugins
+the same way:
+
+```bash
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+```
+
+### 4.5 Verify the plugin was picked up
+
+```bash
+codemap doctor
+```
+
+Every newly installed plugin should appear in the **Registered
+indexers** table without any further configuration. If you don't see
+it, jump to [Troubleshooting](#9-troubleshooting).
+
+---
+
+## 5. First-time usage
+
+```bash
+cd /path/to/your-project
+
+# Build the index (writes ./.codemap/)
+codemap index .
+
+# Inspect the index
+codemap doctor                        # plugin + index health
+codemap diagnostics --severity error  # parser warnings / errors, if any
+
+# Search
+codemap search login -n 5
+codemap get '<symbol-id>'             # source snippet for a single symbol
+codemap callers '<symbol-id>'         # who calls this
+codemap callees '<symbol-id>'         # what does this call
+codemap trace --from '<id>' --depth 5
+codemap routes                        # all HTTP routes the http_route bridge found
+
+# Machine-readable output for AI agents
+codemap --json routes
+codemap --json callers '<symbol-id>'
+```
+
+Re-indexing later:
+
+```bash
+codemap index . --incremental         # re-parse only files whose sha256 changed
+codemap index . --watch               # daemon mode (requires the [watch] extra)
+codemap index . --rebuild             # discard everything and start over
+codemap index . --dry-run             # report what would be indexed, no writes
+```
+
+Configuration lives in `.codemap/config.yaml` (project-local) and
+`~/.config/codemap/config.yaml` (user-global). See
+[`docs/configuration.md`](docs/configuration.md) for the full schema.
+
+---
+
+## 6. Upgrade and uninstall
+
+### Upgrade
+
+```bash
+pipx upgrade codemap                  # pulls the latest main; injected plugins follow
+uv tool upgrade codemap               # uv equivalent
+```
+
+To upgrade to a specific commit:
+
+```bash
+pipx uninstall codemap
+pipx install "git+https://github.com/qxbyte/codemap.git@<commit-sha>"
+# then re-inject your plugins
+```
+
+### Uninstall
+
+```bash
+pipx uninstall codemap                # removes the CLI and every injected plugin
+uv tool uninstall codemap             # uv equivalent
+```
+
+The local `.codemap/` directory in each project is independent — delete
+it manually if you want a project to forget its index.
+
+---
+
+## 7. Validation log
+
+The following is a verbatim transcript of a clean-machine install run
+performed on **2026-05-30** against
+[`qxbyte/codemap@c4cd436`](https://github.com/qxbyte/codemap/commit/c4cd436).
+Every number and table below is what the commands actually produced.
+
+### 7.1 Environment
+
+```bash
+$ python3.12 -m venv /tmp/codemap-fresh
+$ /tmp/codemap-fresh/bin/python --version
+Python 3.12.13
+```
+
+### 7.2 Install the CLI (≈ 2 minutes)
+
+```bash
+$ time /tmp/codemap-fresh/bin/pip install "git+https://github.com/qxbyte/codemap.git"
+...
+Successfully installed annotated-doc-0.0.4 annotated-types-0.7.0
+  codemap-0.1.0 markdown-it-py-4.2.0 mdurl-0.1.2 pydantic-2.13.4
+  pydantic-core-2.46.4 pygments-2.20.0 pyyaml-6.0.3 rich-15.0.0
+  shellingham-1.5.4 typer-0.26.3 typing-extensions-4.15.0
+  typing-inspection-0.4.2
+
+pip install  2.36s user  1.00s system  2% cpu  2:05.55 total
+```
+
+### 7.3 Verify (sub-second)
+
+```bash
+$ /tmp/codemap-fresh/bin/codemap --version
+0.1.0
+
+$ cd /tmp/codemap-demo-project   # empty dir
+$ /tmp/codemap-fresh/bin/codemap doctor
+CodeMap 0.1.0
+project_root: /private/tmp/codemap-demo-project
+
+                  Registered indexers
+┃ name          ┃ version ┃ languages ┃ file_patterns ┃
+│ _example_lang │ 0.1.0   │ example   │ *.example     │
+│ python        │ 0.1.0   │ python    │ *.py, *.pyi   │
+
+             Registered bridges
+┃ name                ┃ version ┃ requires ┃
+│ http_route          │ 0.1.0   │ -        │
+│ python_cross_module │ 0.1.0   │ -        │
+
+No `.codemap/` directory found. Run `codemap index` to build one.
+```
+
+### 7.4 Inject a language plugin (≈ 16 seconds)
+
+```bash
+$ time /tmp/codemap-fresh/bin/pip install \
+    "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+...
+Successfully installed codemap-java-0.1.0 tree-sitter-0.25.2 tree-sitter-java-0.23.5
+
+pip install  0.75s user  0.41s system  7% cpu  15.608 total
+```
+
+```bash
+$ /tmp/codemap-fresh/bin/codemap doctor | head -10
+                  Registered indexers
+┃ name          ┃ version ┃ languages ┃ file_patterns ┃
+│ java          │ 0.1.0   │ java      │ *.java        │   ← auto-discovered
+│ _example_lang │ 0.1.0   │ example   │ *.example     │
+│ python        │ 0.1.0   │ python    │ *.py, *.pyi   │
+```
+
+### 7.5 Index a mixed Java + Python project
+
+A fixture with one `User.java` (a class with a `greet()` method) and
+one `app.py` (a Flask app with `@app.route("/users/<int:uid>")`):
+
+```bash
+$ /tmp/codemap-fresh/bin/codemap index .
+Indexed 2 files
+┃ metric        ┃ count ┃
+│ files_scanned │ 2     │
+│ files_indexed │ 2     │
+│ symbols       │ 6     │
+│ edges         │ 1     │
+│ routes        │ 1     │
+│ diagnostics   │ 0     │
+│ bridges_run   │ 2     │
+```
+
+Search and route lookup:
+
+```bash
+$ /tmp/codemap-fresh/bin/codemap search greet
+┃ kind   ┃ location    ┃ symbol         ┃
+│ method │ User.java:5 │ String greet() │
+
+$ /tmp/codemap-fresh/bin/codemap routes
+┃ method ┃ path             ┃ handler  ┃
+│ GET    │ /users/<int:uid> │ app.py:5 │
+```
+
+JSON mode:
+
+```bash
+$ /tmp/codemap-fresh/bin/codemap --json routes
+{
+  "schema_version": "1.0.0",
+  "command": "routes",
+  "result": {
+    "method_filter": null,
+    "results": [
+      {
+        "method": "GET",
+        "path": "/users/<int:uid>",
+        "route_id": "scip-route . . . api/GET#`/users/<int:uid>`.",
+        "handlers": [
+          { "id": "scip-python . . . app.py/get_user().",
+            "kind": "function", "language": "python",
+            "file": "app.py", "line": 5 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### 7.6 What this confirms
+
+- The main CLI ships **no language bias** — only `python` and the
+  `_example_lang` reference; everything else is opt-in via plugins.
+- Plugins are **zero-config**: a `pip install` is the only step;
+  no entry registered or config edited.
+- The `http_route` bridge already works across languages on the first
+  index — the Flask decorator becomes a `scip-route` symbol that a
+  Java caller (in a hypothetical mixed-stack repo) could be linked to
+  through the same SymbolID format.
+- `--json` output is stable enough to feed an AI agent directly.
+
+---
+
+## 8. Offline distribution
+
+If the target machine has no network at install time, build a wheel
+bundle on a connected machine:
+
+```bash
+# On the source machine (has network)
+mkdir codemap-offline && cd codemap-offline
+pip download \
+    "git+https://github.com/qxbyte/codemap.git" \
+    "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java" \
+    "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript" \
+    -d ./wheels
+
+# Tar it and copy to the target machine
+tar czf codemap-offline.tar.gz wheels/
+
+# On the target machine
+tar xzf codemap-offline.tar.gz
+python3.12 -m venv /opt/codemap
+/opt/codemap/bin/pip install --no-index --find-links=./wheels codemap codemap-java codemap-typescript
+ln -sf /opt/codemap/bin/codemap /usr/local/bin/codemap
+```
+
+`pip download` resolves and downloads every transitive wheel,
+including platform-specific `tree-sitter-*` artifacts. Use the **same
+Python major/minor and the same OS/CPU** on both ends.
+
+---
+
+## 9. Troubleshooting
+
+### "python3 --version says 3.9.x"
+
+macOS ships an old system Python. Install a newer one and use it
+explicitly:
+
+```bash
+brew install python@3.12
+python3.12 -m venv .venv      # use it directly
+# or use pyenv / uv / mise to manage versions
+```
+
+### "command not found: codemap"
+
+After `pipx install`, run `pipx ensurepath` once and **open a new
+shell** so the updated `$PATH` is picked up. To verify the actual
+location:
+
+```bash
+pipx list                     # shows installed apps and their paths
+ls ~/.local/bin/codemap       # the symlink pipx creates
+```
+
+### "I installed a plugin but `doctor` doesn't show it"
+
+The plugin must be installed into **the same environment as the CLI**.
+
+- `pipx`: use `pipx inject codemap <plugin>` — **not** `pip install`
+  in your shell, which goes to a different environment.
+- `uv tool`: use `uv tool inject codemap <plugin>`.
+- Virtualenv: activate it (`source .venv/bin/activate`) before
+  `pip install`.
+
+Verify which Python ships the CLI:
+
+```bash
+which codemap
+head -1 $(which codemap)      # the shebang points at the right Python
+```
+
+### "Install took >2 minutes / timed out"
+
+`pip install` from GitHub clones the repo (≈ 5 MB) and may build
+`tree-sitter-*` from source on first run. Subsequent installs use
+the wheel cache.
+
+For very slow networks, build wheels once with `pip wheel` and reuse
+them across machines (see [Offline distribution](#8-offline-distribution)).
+
+### "`doctor` shows a `.codemap/` from somewhere I didn't expect"
+
+CodeMap walks upward from the current directory looking for the
+nearest `.codemap/` to use as the project root. Either `cd` into the
+project root before running, or pass an explicit path:
+
+```bash
+codemap index /path/to/project        # absolute path
+```
+
+### "tree-sitter-X build fails on first install"
+
+On Apple Silicon some grammars (especially `tree-sitter-rust`,
+`tree-sitter-cpp`) take 30 s – 1 min to compile and need the Xcode
+command-line tools:
+
+```bash
+xcode-select --install
+```
+
+On Linux you may need a C compiler and Python development headers:
+
+```bash
+sudo apt install build-essential python3-dev          # Debian/Ubuntu
+sudo dnf install gcc python3-devel                    # Fedora
+```
+
+### "I want to remove only one plugin, not the whole CLI"
+
+```bash
+pipx runpip codemap uninstall codemap-java            # pipx
+uv tool uninstall-from codemap codemap-java           # uv
+pip uninstall codemap-java                            # plain pip
+```
+
+Then run `codemap doctor` to confirm it's gone.
+
+---
+
+If something still isn't working, please open an issue at
+<https://github.com/qxbyte/codemap/issues> with the exact `codemap
+doctor` output and the install command you used.
