@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "codemap-sql"
-version = "0.1.0"
+version = "0.1.0a1"
 description = "SQL indexer plugin for CodeMap"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Database",
 ]
 dependencies = [
-    "codemap",
+    "codemap-core>=0.1.0a1,<0.2",
     "tree-sitter>=0.25",
     "tree-sitter-sql>=0.3",
 ]
