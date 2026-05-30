@@ -46,41 +46,99 @@ jobs:
           .venv/bin/python -m pytest tests/bench \
             -m bench \
             -o addopts="" \
-            --benchmark-save=pr \
             --benchmark-json=bench-pr.json
 
-      # Compare against main only on PRs; on push-to-main we just store the
-      # numbers for future PRs.
-      - name: Checkout main for baseline
-        if: github.event_name == 'pull_request'
-        run: |
-          git fetch origin main:main
-          git stash --include-untracked
-          git checkout main
+      # On push-to-main there is nothing to compare against; the PR head
+      # numbers themselves become the new baseline for future PRs (via the
+      # uploaded artifact). Comparison only runs on pull_request events.
 
-      - name: Run benchmarks on main
+      - name: Run benchmarks on main (baseline)
         if: github.event_name == 'pull_request'
         run: |
-          # `uv venv` does not bootstrap pip into the venv, so use
-          # `uv pip install --python` instead of `.venv/bin/pip` (which
-          # doesn't exist) to re-install the baseline.
+          # Use a separate worktree so we don't have to stash + checkout the
+          # primary checkout. The PR-head venv (`.venv`) is reused for both
+          # runs — the dependency set is the same, only the indexed code
+          # differs.
+          git fetch origin main:main
+          git worktree add /tmp/main-tree main
+          (
+            cd /tmp/main-tree
+            uv pip install --python "$GITHUB_WORKSPACE/.venv/bin/python" -e ".[dev]"
+            "$GITHUB_WORKSPACE/.venv/bin/python" -m pytest tests/bench \
+              -m bench \
+              -o addopts="" \
+              --benchmark-json="$GITHUB_WORKSPACE/bench-main.json"
+          )
+          # Reinstall PR-head sources so the venv reflects the PR for any
+          # downstream steps that touch it.
           uv pip install --python .venv/bin/python -e ".[dev]"
-          .venv/bin/python -m pytest tests/bench \
-            -m bench \
-            -o addopts="" \
-            --benchmark-save=main \
-            --benchmark-json=bench-main.json
+          git worktree remove /tmp/main-tree --force
 
       - name: Compare PR vs main
         if: github.event_name == 'pull_request'
         run: |
-          .venv/bin/python -m pytest tests/bench \
-            -m bench \
-            -o addopts="" \
-            --benchmark-compare=main \
-            --benchmark-compare-fail=median:20%
+          .venv/bin/python <<'PYEOF'
+          # Custom JSON-level comparison instead of pytest-benchmark's
+          # `--benchmark-compare`. The latter is fragile across the
+          # PR-head ↔ main checkout flip: its on-disk storage layout
+          # depends on the current working tree and we kept tripping on
+          # `--benchmark-compare-fail requires valid --benchmark-compare`.
+          # Reading the two JSON files directly is more transparent.
+          import json
+          import sys
 
-      - name: Upload PR artifact
+          THRESHOLD_WARN = 1.10   # 10% slower → yellow note
+          THRESHOLD_FAIL = 1.20   # 20% slower → fail the check
+
+          pr = json.load(open("bench-pr.json"))
+          main = json.load(open("bench-main.json"))
+
+          main_med = {b["name"]: b["stats"]["median"] for b in main["benchmarks"]}
+
+          rows = []
+          regressions = []
+          for b in pr["benchmarks"]:
+              name = b["name"]
+              if name not in main_med:
+                  continue
+              pr_t = b["stats"]["median"]
+              main_t = main_med[name]
+              ratio = pr_t / main_t
+              if ratio > THRESHOLD_FAIL:
+                  sym = "FAIL"
+              elif ratio > THRESHOLD_WARN:
+                  sym = "warn"
+              else:
+                  sym = "ok"
+              rows.append((sym, name, main_t * 1e6, pr_t * 1e6, ratio))
+              if ratio > THRESHOLD_FAIL:
+                  regressions.append(name)
+
+          if rows:
+              header = f"  {'':<5} {'test':<40} {'main':>12} {'PR':>12} {'delta':>9}"
+              print(header)
+              print("  " + "-" * (len(header) - 2))
+              for sym, name, m, p, r in rows:
+                  print(f"  {sym:<5} {name:<40} {m:>10.1f}us {p:>10.1f}us {r - 1:>+8.1%}")
+
+          if regressions:
+              print()
+              print(
+                  f"::error::{len(regressions)} benchmark(s) "
+                  f"more than {(THRESHOLD_FAIL - 1) * 100:.0f}% slower than main:"
+              )
+              for r in regressions:
+                  print(f"  - {r}")
+              sys.exit(1)
+
+          print()
+          print(
+              f"  OK No benchmark slower than {(THRESHOLD_FAIL - 1) * 100:.0f}% "
+              "vs main."
+          )
+          PYEOF
+
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
