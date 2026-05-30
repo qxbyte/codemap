@@ -3,8 +3,16 @@ requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
 [project]
-name = "codemap"
-version = "0.1.0"
+# Distribution name on PyPI. The import name remains `codemap` (see
+# `src/codemap/`) and the installed CLI command is still `codemap`;
+# the PyPI distribution is `codemap-core` because `codemap` (no
+# suffix) is already taken on PyPI by an unrelated project, and
+# `code-map` was rejected by PyPI's similarity check against
+# `codemap`. The `-core` suffix mirrors the plugin naming convention
+# (`codemap-java`, `codemap-go`, …) — this is the engine; the others
+# are language adapters.
+name = "codemap-core"
+version = "0.1.0a1"
 description = "Language-neutral code index for AI agents"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -13,13 +21,18 @@ authors = [{ name = "CodeMap Contributors" }]
 keywords = ["code-index", "ast", "scip", "agent", "mcp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Environment :: Console",
     "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
     "typer>=0.12",
@@ -39,6 +52,7 @@ dev = [
     "mypy>=1.10",
     "import-linter>=2.0",
     "build>=1.2",
+    "twine>=5.0",
     "types-pyyaml>=6.0",
     "watchdog>=4",
 ]
@@ -50,6 +64,7 @@ codemap = "codemap.cli.main:main"
 Homepage = "https://github.com/qxbyte/codemap"
 Repository = "https://github.com/qxbyte/codemap"
 Issues = "https://github.com/qxbyte/codemap/issues"
+Changelog = "https://github.com/qxbyte/codemap/blob/main/CHANGELOG.md"
 
 [project.entry-points."codemap.indexers"]
 # Built-in indexers register here on equal footing with third-party plugins.

@@ -1,0 +1,120 @@
+name: publish
+
+# Triggered on a tag push. Tag format determines the target index:
+#
+#   v0.1.0a1, v0.1.0b1, v0.1.0rc1  →  TestPyPI  (pre-release rehearsal)
+#   v0.1.0                         →  PyPI      (real release)
+#
+# Trusted Publishing is used — no API token is stored anywhere.
+# Each PyPI/TestPyPI project must have a corresponding "Pending
+# publisher" or "Trusted publisher" entry pointing at:
+#
+#   Owner:    qxbyte
+#   Repo:     codemap
+#   Workflow: publish.yml
+#   Env:      pypi       (for production)
+#             testpypi   (for pre-release)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  determine-target:
+    name: determine target index
+    runs-on: ubuntu-latest
+    outputs:
+      target: ${{ steps.set.outputs.target }}
+    steps:
+      - id: set
+        run: |
+          REF="${{ github.ref_name }}"
+          if [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(a|b|rc)[0-9]+$ ]]; then
+            echo "target=testpypi" >> "$GITHUB_OUTPUT"
+            echo "::notice::Target=TestPyPI (pre-release tag $REF)"
+          elif [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "target=pypi" >> "$GITHUB_OUTPUT"
+            echo "::notice::Target=PyPI (release tag $REF)"
+          else
+            echo "::error::Tag '$REF' does not match v<major>.<minor>.<patch> or v<…>(a|b|rc)<n>"
+            exit 1
+          fi
+
+  publish:
+    name: ${{ matrix.package.name }} → ${{ needs.determine-target.outputs.target }}
+    needs: determine-target
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.determine-target.outputs.target }}
+      url: ${{ needs.determine-target.outputs.target == 'pypi' && format('https://pypi.org/p/{0}', matrix.package.name) || format('https://test.pypi.org/p/{0}', matrix.package.name) }}
+    permissions:
+      id-token: write       # required for Trusted Publishing OIDC
+      contents: read
+    strategy:
+      fail-fast: false      # keep going if one package fails — rerun later
+      max-parallel: 5       # be polite to PyPI; 5 uploads at a time is plenty
+      matrix:
+        package:
+          - { name: codemap-core,       dir: "." }
+          - { name: codemap-typescript, dir: "plugins/codemap-typescript" }
+          - { name: codemap-java,       dir: "plugins/codemap-java" }
+          - { name: codemap-go,         dir: "plugins/codemap-go" }
+          - { name: codemap-rust,       dir: "plugins/codemap-rust" }
+          - { name: codemap-swift,      dir: "plugins/codemap-swift" }
+          - { name: codemap-kotlin,     dir: "plugins/codemap-kotlin" }
+          - { name: codemap-ruby,       dir: "plugins/codemap-ruby" }
+          - { name: codemap-php,        dir: "plugins/codemap-php" }
+          - { name: codemap-sql,        dir: "plugins/codemap-sql" }
+          - { name: codemap-bash,       dir: "plugins/codemap-bash" }
+          - { name: codemap-c,          dir: "plugins/codemap-c" }
+          - { name: codemap-cpp,        dir: "plugins/codemap-cpp" }
+          - { name: codemap-csharp,     dir: "plugins/codemap-csharp" }
+          - { name: codemap-scala,      dir: "plugins/codemap-scala" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install Python
+        run: uv python install 3.13
+
+      - name: Create isolated build venv
+        run: |
+          uv venv --python 3.13 /tmp/build-env
+          /tmp/build-env/bin/pip install build twine
+
+      - name: Build sdist + wheel
+        working-directory: ${{ matrix.package.dir }}
+        run: |
+          rm -rf dist
+          /tmp/build-env/bin/python -m build
+          ls -la dist/
+
+      - name: Validate distributions
+        working-directory: ${{ matrix.package.dir }}
+        run: /tmp/build-env/bin/twine check dist/*
+
+      - name: Publish to TestPyPI
+        if: needs.determine-target.outputs.target == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: ${{ matrix.package.dir }}/dist/
+          skip-existing: true   # idempotent re-runs
+
+      - name: Publish to PyPI
+        if: needs.determine-target.outputs.target == 'pypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: ${{ matrix.package.dir }}/dist/
+          skip-existing: true

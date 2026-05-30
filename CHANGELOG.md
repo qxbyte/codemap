@@ -8,6 +8,85 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.1.0a1] — 2026-05-30
+
+First PyPI release rehearsal. Pre-release artifacts are published to
+TestPyPI and (rate-permitting) PyPI under the new distribution names.
+
+### Changed — Distribution rename: `codemap` → `codemap-core`
+
+The PyPI distribution name for the main package becomes `codemap-core`.
+Reason: `codemap` is held by an unrelated, actively-maintained PyPI
+project (Sarthak Mishra, latest `2.0.0`); `code-map` (the obvious
+hyphenated variant) is rejected by PyPI's similarity check because the
+edit distance from `codemap` is 1. The `-core` suffix mirrors the
+plugin naming convention — `codemap-core` is the engine, `codemap-java`
+/ `codemap-go` / etc. are language adapters.
+
+Behavior:
+
+* **Import path is unchanged** — `from codemap.core.models import Symbol`
+  still works; the wheel still ships `src/codemap/` to `site-packages/codemap/`.
+* **CLI command is unchanged** — `codemap doctor`, `codemap index .`, etc.
+  still appear on `$PATH` after install.
+* **Install command does change** — users moving from a git-based install
+  to PyPI will use `pip install codemap-core` (not `pip install codemap`).
+
+### Changed — Plugins now depend on `codemap-core` with a version range
+
+Each of the 14 language plugins replaces its bare `"codemap"` dependency
+with `"codemap-core>=0.1.0a1,<0.2"`. The lower bound admits the alpha
+series; the upper bound stops a future BREAKING bump to `0.2.x` from
+silently pulling an incompatible engine.
+
+### Added — `.github/workflows/publish.yml` (Trusted Publishing)
+
+Tag-driven publish pipeline:
+
+* `v<X>.<Y>.<Z>(a|b|rc)<N>` → TestPyPI
+* `v<X>.<Y>.<Z>`            → PyPI
+* anything else             → workflow fails fast
+
+15-package matrix (1 main + 14 plugins), each step:
+
+1. `uv` installs Python 3.13 + `build` + `twine`
+2. `python -m build` produces `dist/*.tar.gz` and `dist/*.whl`
+3. `twine check dist/*` validates metadata + README rendering
+4. `pypa/gh-action-pypi-publish@release/v1` uploads via OIDC
+
+Uses GitHub Environments (`pypi` / `testpypi`) for Trusted Publishing.
+`id-token: write` permission grants the OIDC token; no PyPI API token
+is stored in repository secrets. `skip-existing: true` makes re-runs
+idempotent.
+
+### Added — `twine>=5.0` to `[dev]` extras
+
+For local manual `twine check` / `twine upload` outside CI.
+
+### Added — Distribution metadata polish
+
+Main `pyproject.toml` gains:
+
+* `Environment :: Console`,
+  `Intended Audience :: Information Technology`,
+  `Operating System :: MacOS`,
+  `Operating System :: POSIX :: Linux`,
+  `Topic :: Software Development :: Libraries :: Python Modules`
+  classifiers.
+* `Changelog` URL in `[project.urls]`.
+
+### Validated locally (2026-05-30)
+
+* `python -m build` succeeds for all 15 packages; 30 artifacts produced
+  (15 sdists + 15 wheels).
+* `twine check dist/* plugins/*/dist/*` reports **30 PASSED**.
+* All 15 names uploaded to **TestPyPI** successfully:
+  <https://test.pypi.org/project/codemap-core/0.1.0a1/> and the 14
+  matching `codemap-<lang>` siblings.
+* Production **PyPI** upload was rate-limited (HTTP 429) after the
+  first batch; a background retry loop with `--skip-existing` brings
+  the remaining names up over the following minutes.
+
 ### Added — Bilingual `INSTALL.md` install guide (2026-05-30)
 
 - New `INSTALL.md` (English) and `INSTALL.zh-CN.md` (Simplified
