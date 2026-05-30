@@ -1,0 +1,36 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+
+      - name: Install Python
+        run: uv python install 3.12
+
+      - name: Install build deps
+        run: |
+          uv venv .venv
+          uv pip install build
+
+      - name: Build wheel + sdist
+        run: .venv/bin/python -m build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: codemap-dist
+          path: dist/*
+          retention-days: 30

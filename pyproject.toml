@@ -1,0 +1,214 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codemap"
+version = "0.1.0"
+description = "Language-neutral code index for AI agents"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+authors = [{ name = "CodeMap Contributors" }]
+keywords = ["code-index", "ast", "scip", "agent", "mcp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development",
+]
+dependencies = [
+    "typer>=0.12",
+    "pydantic>=2.6",
+    "rich>=13.7",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+watch = ["watchdog>=4"]
+mcp = ["mcp>=0.9"]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=4.1",
+    "pytest-benchmark>=4.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "import-linter>=2.0",
+    "build>=1.2",
+    "types-pyyaml>=6.0",
+]
+
+[project.scripts]
+codemap = "codemap.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/qxbyte/codemap"
+Repository = "https://github.com/qxbyte/codemap"
+Issues = "https://github.com/qxbyte/codemap/issues"
+
+[project.entry-points."codemap.indexers"]
+# Built-in indexers register here on equal footing with third-party plugins.
+# (No language is privileged; see ADR-L001.)
+_example_lang = "codemap.indexers._example_lang:ExampleLangIndexer"
+
+[project.entry-points."codemap.bridges"]
+# Built-in bridges register here on equal footing with third-party plugins.
+
+# ---------------------------------------------------------------------------
+# Hatch
+# ---------------------------------------------------------------------------
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codemap"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/docs",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = ["tests/fixtures"]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",        # pycodestyle / pyflakes
+    "I",                  # isort
+    "B",                  # bugbear
+    "UP",                 # pyupgrade
+    "SIM",                # simplify
+    "RUF",                # ruff-specific
+    "PT",                 # pytest-style
+    "PL",                 # pylint subset
+    "TID",                # tidy-imports
+    "TCH",                # type-checking
+    "PERF",               # perflint
+]
+ignore = [
+    "E501",               # line length handled by formatter
+    "PLR0913",            # too many args (allowed for public APIs)
+    "PLR2004",            # magic number in tests
+    "PLR0911",            # too many returns — judgement call per function
+    "PLR0912",            # too many branches — same
+    # The TC contracts (PEP-563) lobby for moving runtime imports into
+    # `TYPE_CHECKING`. That's harmful for Pydantic models, Typer commands,
+    # and runtime-evaluated Protocols which need the real symbols at runtime.
+    "TC001",
+    "TC002",
+    "TC003",
+    "PLC0415",            # local imports allowed for lazy plugin loading
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests commonly need compound `pytest.raises` blocks and broad assertion forms.
+"tests/**/*.py" = ["PLR2004", "B011", "S101", "PT012"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["codemap"]
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+files = ["src/codemap"]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=codemap",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80",
+]
+markers = [
+    "slow: tests that take >1s",
+    "bench: benchmark tests (skipped by default)",
+]
+
+[tool.coverage.run]
+source = ["src/codemap"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+]
+
+# ---------------------------------------------------------------------------
+# Import-linter (enforces ADR-003 module boundaries)
+# ---------------------------------------------------------------------------
+
+[tool.importlinter]
+root_package = "codemap"
+
+[[tool.importlinter.contracts]]
+name = "core has no IO/CLI/indexer dependencies"
+type = "forbidden"
+source_modules = ["codemap.core"]
+forbidden_modules = [
+    "codemap.cli",
+    "codemap.io",
+    "codemap.indexers",
+    "codemap.mcp",
+]
+
+[[tool.importlinter.contracts]]
+name = "io may not import cli/mcp/indexers"
+type = "forbidden"
+source_modules = ["codemap.io"]
+forbidden_modules = [
+    "codemap.cli",
+    "codemap.mcp",
+    "codemap.indexers",
+]
+
+[[tool.importlinter.contracts]]
+name = "indexers may not import cli/mcp/io"
+type = "forbidden"
+source_modules = ["codemap.indexers"]
+forbidden_modules = [
+    "codemap.cli",
+    "codemap.mcp",
+    "codemap.io",
+]
