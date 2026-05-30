@@ -8,6 +8,26 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Cross-module Python call resolution (2026-05-30)
+
+- New `codemap.core.bridge.python_cross_module.PythonCrossModuleBridge`
+  resolves the synthetic `scip-python . . . <module>/<leaf>.` targets the
+  Python indexer emits for cross-file imports. The bridge looks for a
+  local symbol with the matching leaf name; if the file stem also matches
+  the last namespace segment of the synthetic target the alias confidence
+  is `high`, otherwise it falls back to `medium` for unambiguous single
+  candidates and bails on ambiguity.
+- `JsonStore.callers` / `callees` now transparently expand aliases via a
+  reverse-alias index built at load time, so query commands automatically
+  see cross-module callers without the caller doing anything special.
+- On the CodeMap repo itself, `callers SymbolID#` now finds 10 callers
+  across http_route.py / _example_lang.py / python.py / test_symbol.py
+  rather than just the 1 same-file reference visible before.
+- 10 unit tests + 3 e2e tests cover happy paths (file-stem match,
+  single-candidate by leaf), explicit skips (no candidates, ambiguous
+  candidates, non-python scheme, non-call edges, already-resolved
+  targets, dedup), and the multi-file callers behaviour through the CLI.
+
 ### Added — Diagnostics command + error UX (2026-05-30)
 
 - New `codemap diagnostics` command lists diagnostics recorded during the

@@ -70,6 +70,10 @@ class JsonStore:
         self._callees_idx: dict[str, list[Edge]] = defaultdict(list)
         self._routes: list[Route] = []
         self._aliases: list[Alias] = []
+        # Reverse alias index: when a bridge emits Alias(source=S, targets=[T]),
+        # `_alias_reverse_idx[str(T)]` includes str(S). Used to transparently
+        # expand a query for caller/callees of T to also cover S.
+        self._alias_reverse_idx: dict[str, list[SymbolID]] = defaultdict(list)
         self._diagnostics: list[Diagnostic] = []
         self._manifest: Manifest | None = None
 
@@ -118,6 +122,7 @@ class JsonStore:
         self._callees_idx.clear()
         self._routes.clear()
         self._aliases.clear()
+        self._alias_reverse_idx.clear()
         self._diagnostics.clear()
 
         mp = manifest_path(self._root)
@@ -150,7 +155,10 @@ class JsonStore:
         aliases_raw = self._read_json(_ALIASES, default=[])
         if isinstance(aliases_raw, list):
             for raw in aliases_raw:
-                self._aliases.append(Alias.model_validate(raw))
+                alias = Alias.model_validate(raw)
+                self._aliases.append(alias)
+                for target in alias.targets:
+                    self._alias_reverse_idx[str(target)].append(alias.source)
         diag_raw = self._read_json(_DIAGNOSTICS, default=[])
         if isinstance(diag_raw, list):
             for raw in diag_raw:
@@ -209,10 +217,39 @@ class JsonStore:
         return iter(self._diagnostics)
 
     def callers(self, sid: SymbolID, *, depth: int = 1) -> list[Edge]:
-        return self._walk(sid, self._callers_idx, depth, key=lambda e: e.source)
+        seeds = [sid, *self._alias_reverse_idx.get(str(sid), [])]
+        return self._walk_from_seeds(seeds, self._callers_idx, depth, key=lambda e: e.source)
 
     def callees(self, sid: SymbolID, *, depth: int = 1) -> list[Edge]:
-        return self._walk(sid, self._callees_idx, depth, key=lambda e: e.target)
+        seeds = [sid, *self._alias_reverse_idx.get(str(sid), [])]
+        return self._walk_from_seeds(seeds, self._callees_idx, depth, key=lambda e: e.target)
+
+    def _walk_from_seeds(
+        self,
+        seeds: list[SymbolID],
+        index: dict[str, list[Edge]],
+        depth: int,
+        *,
+        key: Callable[[Edge], SymbolID],
+    ) -> list[Edge]:
+        if depth <= 0:
+            return []
+        visited: set[str] = set()
+        out: list[Edge] = []
+        frontier = [str(s) for s in seeds]
+        for _ in range(depth):
+            if not frontier:
+                break
+            new_frontier: list[str] = []
+            for node in frontier:
+                if node in visited:
+                    continue
+                visited.add(node)
+                for edge in index.get(node, ()):
+                    out.append(edge)
+                    new_frontier.append(str(key(edge)))
+            frontier = new_frontier
+        return out
 
     def _walk(
         self,
