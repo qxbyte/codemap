@@ -9,6 +9,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Single source of truth for the Python version used to run benchmarks.
+# Bumping a Python version means changing here, not at the use sites.
+env:
+  BENCH_PYTHON_VERSION: "3.13"
+
 jobs:
   benchmark:
     name: benchmark vs main
@@ -29,12 +34,12 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install Python
-        run: uv python install 3.13
+        run: uv python install ${{ env.BENCH_PYTHON_VERSION }}
 
       - name: Create venv and install
         run: |
-          uv venv --python 3.13 .venv
-          uv pip install -e ".[dev]"
+          uv venv --python ${{ env.BENCH_PYTHON_VERSION }} .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
 
       - name: Run benchmarks on PR head
         run: |
@@ -56,7 +61,10 @@ jobs:
       - name: Run benchmarks on main
         if: github.event_name == 'pull_request'
         run: |
-          .venv/bin/pip install -e ".[dev]"
+          # `uv venv` does not bootstrap pip into the venv, so use
+          # `uv pip install --python` instead of `.venv/bin/pip` (which
+          # doesn't exist) to re-install the baseline.
+          uv pip install --python .venv/bin/python -e ".[dev]"
           .venv/bin/python -m pytest tests/bench \
             -m bench \
             -o addopts="" \

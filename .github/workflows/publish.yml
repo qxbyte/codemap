@@ -1,4 +1,4 @@
-name: publish
+name: publish-to-pypi
 
 # Triggered on a tag push. Tag format determines the target index:
 #
@@ -23,6 +23,13 @@ on:
 concurrency:
   group: publish-${{ github.ref }}
   cancel-in-progress: false
+
+# Single source of truth for the Python version used to *build* every
+# distribution. We build `py3-none-any` wheels so any 3.11+ would work;
+# 3.13 is the highest in our test matrix and the one we develop on.
+# To change Python: edit here, not at the use site below.
+env:
+  BUILD_PYTHON_VERSION: "3.13"
 
 jobs:
   determine-target:
@@ -86,11 +93,11 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install Python
-        run: uv python install 3.13
+        run: uv python install ${{ env.BUILD_PYTHON_VERSION }}
 
       - name: Create isolated build venv
         run: |
-          uv venv --python 3.13 /tmp/build-env
+          uv venv --python ${{ env.BUILD_PYTHON_VERSION }} /tmp/build-env
           /tmp/build-env/bin/pip install build twine
 
       - name: Build sdist + wheel
