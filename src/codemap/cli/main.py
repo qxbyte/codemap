@@ -12,6 +12,7 @@ import typer
 from codemap import __version__
 from codemap.cli.commands import callees as callees_cmd
 from codemap.cli.commands import callers as callers_cmd
+from codemap.cli.commands import config as config_cmd
 from codemap.cli.commands import doctor as doctor_cmd
 from codemap.cli.commands import get as get_cmd
 from codemap.cli.commands import index as index_cmd
@@ -91,6 +92,7 @@ callers_cmd.register(app)
 callees_cmd.register(app)
 trace_cmd.register(app)
 routes_cmd.register(app)
+config_cmd.register(app)
 
 
 def main() -> None:  # pragma: no cover - thin wrapper

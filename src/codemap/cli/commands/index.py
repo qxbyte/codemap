@@ -19,6 +19,8 @@ if TYPE_CHECKING:
 from codemap import __version__
 from codemap.cli.renderers import json as json_renderer
 from codemap.cli.renderers import text
+from codemap.config import Config, ConfigError, load_config
+from codemap.config.schema import DEFAULT_PRUNE_DIRS
 from codemap.core.bridge.registry import get_registry as get_bridges
 from codemap.core.models import (
     BridgeEntry,
@@ -35,27 +37,7 @@ from codemap.io.json_store import JsonStore
 logger = logging.getLogger(__name__)
 
 CODEMAP_DIR = ".codemap"
-MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB, per ADR §23
-
-# Directories we never recurse into. Kept intentionally short — language /
-# ecosystem-specific ignores are user-configurable.
-_PRUNE_DIRS = frozenset(
-    {
-        ".git",
-        ".hg",
-        ".svn",
-        ".codemap",
-        ".venv",
-        "venv",
-        "node_modules",
-        "__pycache__",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "dist",
-        "build",
-    }
-)
+_PRUNE_DIRS = frozenset(DEFAULT_PRUNE_DIRS)
 
 
 def register(app: typer.Typer) -> None:
@@ -87,19 +69,25 @@ def register(app: typer.Typer) -> None:
         if rebuild and codemap_dir.exists():
             _remove_index(codemap_dir)
 
+        try:
+            config = load_config(codemap_dir if codemap_dir.exists() else None)
+        except ConfigError as exc:
+            text.console(stderr=True).print(f"[red]Config error:[/red] {exc}")
+            raise typer.Exit(code=int(ExitCode.CONFIG_ERROR)) from exc
+
         registry = get_indexers()
-        indexer_list = list(registry.all().values())
+        indexer_list = _select_indexers(registry, config)
         if not indexer_list:
             _die_no_indexers(as_json)
 
-        files = _collect_files(path, indexer_list)
+        files = _collect_files(path, indexer_list, config)
         stats = _IndexStats()
         with JsonStore.open(codemap_dir) as store:
             with progress_bar("Indexing", total=len(files), enabled=not no_progress) as bar:
                 for file_path in files:
-                    _index_one(file_path, path, store, registry, stats, bar)
-            _run_bridges(store, stats)
-            m = _build_manifest(path, indexer_list, stats)
+                    _index_one(file_path, path, store, registry, stats, bar, config)
+            _run_bridges(store, stats, config)
+            m = _build_manifest(path, indexer_list, stats, config)
             store.set_manifest(m)
             store.commit()
 
@@ -155,22 +143,72 @@ class _IndexStats:
         self.per_indexer: dict[str, int] = {}
 
 
-def _collect_files(root: Path, indexers: Iterable[Indexer]) -> list[Path]:
+def _collect_files(
+    root: Path,
+    indexers: Iterable[Indexer],
+    config: Config,
+) -> list[Path]:
     patterns = [p for ix in indexers for p in ix.file_patterns]
+    ignore_patterns = config.index.ignore
     out: list[Path] = []
-    for current_root, dirs, names in _walk(root):
-        out.extend(
-            Path(current_root) / name
-            for name in names
-            if any(fnmatch.fnmatch(name, pat) for pat in patterns)
-        )
-        dirs[:] = [d for d in dirs if d not in _PRUNE_DIRS]
+    for current_root, dirs, names in _walk(root, follow_symlinks=config.index.follow_symlinks):
+        for name in names:
+            if not any(fnmatch.fnmatch(name, pat) for pat in patterns):
+                continue
+            full = Path(current_root) / name
+            rel = full.relative_to(root).as_posix()
+            if _matches_any(rel, ignore_patterns):
+                continue
+            out.append(full)
+        dirs[:] = [
+            d
+            for d in dirs
+            if d not in _PRUNE_DIRS
+            and not _matches_any(d, ignore_patterns)
+            and not _matches_any(
+                (Path(current_root) / d).relative_to(root).as_posix(),
+                ignore_patterns,
+            )
+        ]
     return sorted(out)
 
 
-def _walk(root: Path) -> Iterator[tuple[str, list[str], list[str]]]:
+def _matches_any(candidate: str, patterns: list[str]) -> bool:
+    return any(fnmatch.fnmatch(candidate, pat) for pat in patterns)
+
+
+def _walk(
+    root: Path,
+    *,
+    follow_symlinks: bool,
+) -> Iterator[tuple[str, list[str], list[str]]]:
     """``os.walk`` substitute that yields ``(root, dirs, names)`` from pathlib."""
-    yield from os.walk(root, followlinks=False)
+    yield from os.walk(root, followlinks=follow_symlinks)
+
+
+def _select_indexers(registry, config: Config) -> list[Indexer]:  # type: ignore[no-untyped-def]
+    """Filter the registry through ``config.indexers.{enabled,disabled}``."""
+    all_indexers = registry.all()
+    enabled_filter = config.indexers.enabled
+    disabled = set(config.indexers.disabled)
+    if enabled_filter == "all":
+        names = [n for n in all_indexers if n not in disabled]
+    else:
+        names = [n for n in enabled_filter if n in all_indexers and n not in disabled]
+    return [all_indexers[n] for n in names]
+
+
+def _select_bridges(config: Config) -> list[Any]:
+    """Filter bridges by config and return them in topological order."""
+    registry = get_bridges()
+    all_bridges = registry.all()
+    enabled_filter = config.bridges.enabled
+    disabled = set(config.bridges.disabled)
+    if enabled_filter == "all":
+        wanted = {n for n in all_bridges if n not in disabled}
+    else:
+        wanted = {n for n in enabled_filter if n in all_bridges and n not in disabled}
+    return [b for b in registry.topological_order() if b.name in wanted]
 
 
 def _index_one(
@@ -180,18 +218,21 @@ def _index_one(
     registry: IndexerRegistry,
     stats: _IndexStats,
     bar: Any,
+    config: Config,
 ) -> None:
     stats.files_scanned += 1
     try:
         size = file_path.stat().st_size
     except OSError:
         return
-    if size > MAX_FILE_BYTES:
-        logger.warning("skipping %s (size %d > %d)", file_path, size, MAX_FILE_BYTES)
+    max_bytes = config.index.max_file_bytes
+    if size > max_bytes:
+        logger.warning("skipping %s (size %d > %d)", file_path, size, max_bytes)
         return
     rel = PurePosixPath(file_path.relative_to(project_root).as_posix())
 
-    matches = list(registry.for_path(file_path))
+    enabled_names = {ix.name for ix in _select_indexers(registry, config)}
+    matches = [ix for ix in registry.for_path(file_path) if ix.name in enabled_names]
     if not matches:
         return
     try:
@@ -239,8 +280,8 @@ def _index_one(
     bar.advance(0)  # update spinner
 
 
-def _run_bridges(store: JsonStore, stats: _IndexStats) -> None:
-    bridges = get_bridges().topological_order()
+def _run_bridges(store: JsonStore, stats: _IndexStats, config: Config) -> None:
+    bridges = _select_bridges(config)
     for b in bridges:
         try:
             result = b.resolve(store)
@@ -261,10 +302,12 @@ def _build_manifest(
     root: Path,
     indexers: list[Indexer],
     stats: _IndexStats,
+    config: Config,
 ) -> Manifest:
     return Manifest(
         codemap_version=__version__,
         project_root=str(root.resolve()),
+        storage_backend=config.storage.backend,
         indexers=[
             IndexerEntry(
                 name=ix.name,
@@ -275,7 +318,7 @@ def _build_manifest(
         ],
         bridges=[
             BridgeEntry(name=b.name, version=b.version, edge_count=0)
-            for b in get_bridges().all().values()
+            for b in _select_bridges(config)
         ],
         files=stats.file_entries,
     )

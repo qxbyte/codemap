@@ -8,6 +8,33 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Configuration file (2026-05-30)
+
+- `.codemap/config.yaml` now actually loads, replacing the previous empty
+  placeholder. Three layers are merged in order: built-in defaults →
+  `~/.config/codemap/config.yaml` → `<project>/.codemap/config.yaml`.
+  Recursive mapping merge means each layer only has to mention what it
+  changes.
+- New schema (`codemap.config.schema.Config`, pydantic-backed,
+  `extra=forbid` so typos surface as errors):
+  - `storage.backend` (`json` | `sqlite`)
+  - `index.ignore` (glob patterns on both file names and project-relative
+    paths), `index.max_file_bytes`, `index.follow_symlinks`
+  - `indexers.enabled` / `indexers.disabled`
+  - `bridges.enabled` / `bridges.disabled`
+- `codemap index` honours every field — `ignore` filters the walk,
+  `max_file_bytes` replaces the previously hard-coded limit, and
+  enabled/disabled lists shape which indexers / bridges run.
+- New `codemap config show [--project P]` command prints the merged
+  configuration (rendered YAML + source paths or a JSON envelope) so it's
+  obvious which layer contributed which value.
+- Validation errors surface as `EX_CONFIG` (exit 78) with the offending
+  field path, never as a stack trace.
+- 15 unit tests + 10 e2e tests cover schema defaults, layer merging,
+  YAML errors, validation errors, ignore / max_file_bytes / disabled
+  indexers / disabled bridges in action. `docs/configuration.md`
+  documents every key.
+
 ### Added — Python HTTP recognition + benchmark gate (2026-05-30)
 
 - **Python indexer** now produces `http_route` and `http_calls` metadata
