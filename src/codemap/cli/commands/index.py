@@ -59,6 +59,20 @@ def register(app: typer.Typer) -> None:
             bool,
             typer.Option("--rebuild", help="Discard any existing `.codemap/` and rebuild."),
         ] = False,
+        incremental: Annotated[
+            bool,
+            typer.Option(
+                "--incremental",
+                help="Only re-parse files whose sha256 changed since the last run.",
+            ),
+        ] = False,
+        watch: Annotated[
+            bool,
+            typer.Option(
+                "--watch",
+                help="Stay running and re-index files as they change (requires watchdog).",
+            ),
+        ] = False,
         dry_run: Annotated[
             bool,
             typer.Option(
@@ -94,12 +108,40 @@ def register(app: typer.Typer) -> None:
             _emit_dry_run(as_json, path, files, indexer_list, config)
             return
 
+        if watch:
+            _run_watch_mode(
+                path,
+                codemap_dir,
+                indexer_list,
+                registry,
+                config,
+                no_progress=no_progress,
+            )
+            return
+
+        use_incremental = (
+            incremental and codemap_dir.exists() and (codemap_dir / "manifest.json").exists()
+        )
+        if incremental and not use_incremental:
+            logger.warning("--incremental requested but no existing index; running full build")
+
         stats = _IndexStats()
         with JsonStore.open(codemap_dir) as store:
-            with progress_bar("Indexing", total=len(files), enabled=not no_progress) as bar:
-                for file_path in files:
-                    _index_one(file_path, path, store, registry, stats, bar, config)
-            _run_bridges(store, stats, config)
+            if use_incremental:
+                _do_incremental(
+                    path,
+                    indexer_list,
+                    registry,
+                    config,
+                    store,
+                    stats,
+                    no_progress=no_progress,
+                )
+            else:
+                with progress_bar("Indexing", total=len(files), enabled=not no_progress) as bar:
+                    for file_path in files:
+                        _index_one(file_path, path, store, registry, stats, bar, config)
+                _run_bridges(store, stats, config)
             m = _build_manifest(path, indexer_list, stats, config)
             store.set_manifest(m)
             store.commit()
@@ -377,6 +419,248 @@ def _remove_index(codemap_dir: Path) -> None:
     import shutil
 
     shutil.rmtree(codemap_dir, ignore_errors=False)
+
+
+def _do_incremental(
+    project_root: Path,
+    indexer_list: list[Indexer],
+    registry: IndexerRegistry,
+    config: Config,
+    store: JsonStore,
+    stats: _IndexStats,
+    *,
+    no_progress: bool,
+) -> None:
+    """Re-index only files whose sha256 changed since the last manifest."""
+    prev_manifest = store.manifest()
+    prev_files = dict(prev_manifest.files)
+    current_paths = _collect_files(project_root, indexer_list, config)
+    current_keys = {p.relative_to(project_root).as_posix() for p in current_paths}
+
+    deleted = set(prev_files.keys()) - current_keys
+    for rel in deleted:
+        store.delete_by_file(rel)
+        stats.files_scanned += 1
+
+    changed: list[tuple[Path, str, bytes, str, int]] = []
+    for f in current_paths:
+        rel = f.relative_to(project_root).as_posix()
+        stats.files_scanned += 1
+        try:
+            source = f.read_bytes()
+        except OSError as exc:
+            logger.warning("cannot read %s: %s", f, exc)
+            continue
+        digest = hashlib.sha256(source).hexdigest()
+        size = len(source)
+        prev = prev_files.get(rel)
+        if prev is not None and prev.sha256 == digest:
+            stats.file_entries[rel] = prev
+            continue
+        changed.append((f, rel, source, digest, size))
+
+    if changed:
+        for _, rel, _, _, _ in changed:
+            store.delete_by_file(rel)
+        with progress_bar("Re-indexing", total=len(changed), enabled=not no_progress) as bar:
+            for f, rel, source, digest, size in changed:
+                _index_one_prefetched(
+                    f,
+                    project_root,
+                    rel,
+                    source,
+                    digest,
+                    size,
+                    store,
+                    registry,
+                    stats,
+                    bar,
+                    config,
+                )
+
+    if changed or deleted:
+        store.clear_bridge_outputs()
+        _run_bridges(store, stats, config)
+
+
+def _index_one_prefetched(
+    file_path: Path,
+    project_root: Path,
+    rel: str,
+    source: bytes,
+    digest: str,
+    size: int,
+    store: JsonStore,
+    registry: IndexerRegistry,
+    stats: _IndexStats,
+    bar: Any,
+    config: Config,
+) -> None:
+    """Like ``_index_one`` but reuses the pre-fetched source / digest / size."""
+    rel_posix = PurePosixPath(rel)
+    enabled_names = {ix.name for ix in _select_indexers(registry, config)}
+    matches = [ix for ix in registry.for_path(file_path) if ix.name in enabled_names]
+    if not matches:
+        return
+    indexed_any = False
+    for ix in matches:
+        ctx = IndexContext(
+            project_root=project_root,
+            relative_path=rel_posix,
+            language=(ix.languages[0] if ix.languages else "unknown"),
+        )
+        try:
+            result = ix.index_file(file_path, source, ctx)
+        except Exception as exc:
+            logger.exception("indexer %s failed on %s", ix.name, file_path)
+            store.upsert_diagnostics(
+                [
+                    Diagnostic(
+                        severity="error",
+                        file=rel_posix,
+                        code="INDEXER_CRASH",
+                        message=_short_exception_message(ix.name, exc),
+                        producer=ix.name,
+                    )
+                ]
+            )
+            stats.diagnostics += 1
+            continue
+        store.upsert_symbols(result.symbols)
+        store.upsert_edges(result.edges)
+        store.upsert_routes(result.routes)
+        store.upsert_diagnostics(result.diagnostics)
+        stats.symbols += len(result.symbols)
+        stats.edges += len(result.edges)
+        stats.routes += len(result.routes)
+        stats.diagnostics += len(result.diagnostics)
+        stats.per_indexer[ix.name] = stats.per_indexer.get(ix.name, 0) + 1
+        indexed_any = True
+        if rel not in stats.file_entries:
+            stats.file_entries[rel] = FileEntry(
+                sha256=digest,
+                mtime_ns=file_path.stat().st_mtime_ns,
+                size=size,
+                language=ctx.language,
+                indexer_version=ix.version,
+                symbol_count=len(result.symbols),
+                indexed_at=datetime.now(UTC),
+            )
+    if indexed_any:
+        stats.files_indexed += 1
+    bar.advance(0)
+
+
+def _run_watch_mode(
+    project_root: Path,
+    codemap_dir: Path,
+    indexer_list: list[Indexer],
+    registry: IndexerRegistry,
+    config: Config,
+    *,
+    no_progress: bool,
+) -> None:
+    """Run an initial incremental index, then watch the project tree."""
+    try:
+        from watchdog.events import FileSystemEvent, FileSystemEventHandler
+        from watchdog.observers import Observer
+    except ImportError as exc:
+        text.console(stderr=True).print(
+            "[red]--watch requires watchdog.[/red] Install it with `pip install codemap[watch]`."
+        )
+        raise typer.Exit(code=int(ExitCode.UNAVAILABLE)) from exc
+
+    import threading
+    import time
+
+    cons = text.console()
+
+    # Initial index (incremental if .codemap/ exists, else full).
+    def run_pass() -> tuple[int, int, int]:
+        stats = _IndexStats()
+        with JsonStore.open(codemap_dir) as store:
+            if (codemap_dir / "manifest.json").exists():
+                _do_incremental(
+                    project_root,
+                    indexer_list,
+                    registry,
+                    config,
+                    store,
+                    stats,
+                    no_progress=True,
+                )
+            else:
+                files = _collect_files(project_root, indexer_list, config)
+                with progress_bar("Indexing", total=len(files), enabled=False) as bar:
+                    for f in files:
+                        _index_one(f, project_root, store, registry, stats, bar, config)
+                _run_bridges(store, stats, config)
+            m = _build_manifest(project_root, indexer_list, stats, config)
+            store.set_manifest(m)
+            store.commit()
+        return stats.files_indexed, stats.symbols, stats.edges
+
+    files_indexed, symbols, edges = run_pass()
+    cons.print(
+        f"[green]Initial index:[/green] {files_indexed} files, {symbols} symbols, {edges} edges"
+    )
+
+    lock = threading.Lock()
+    pending = threading.Event()
+
+    class Handler(FileSystemEventHandler):
+        def _record(self, src_path: str) -> None:
+            try:
+                p = Path(src_path).resolve()
+            except OSError:
+                return
+            try:
+                p.relative_to(codemap_dir.resolve())
+                return  # our own write to .codemap/
+            except ValueError:
+                pass
+            with lock:
+                pending.set()
+
+        def on_modified(self, event: FileSystemEvent) -> None:
+            if not event.is_directory:
+                self._record(str(event.src_path))
+
+        def on_created(self, event: FileSystemEvent) -> None:
+            if not event.is_directory:
+                self._record(str(event.src_path))
+
+        def on_deleted(self, event: FileSystemEvent) -> None:
+            if not event.is_directory:
+                self._record(str(event.src_path))
+
+    observer = Observer()
+    observer.schedule(Handler(), str(project_root), recursive=True)
+    observer.start()
+    cons.print(f"[bold]Watching[/bold] {project_root} for changes (Ctrl-C to stop)...")
+    try:
+        while True:
+            triggered = pending.wait(timeout=1.0)
+            if not triggered:
+                continue
+            # Debounce: collect events for an extra 500 ms
+            time.sleep(0.5)
+            with lock:
+                pending.clear()
+            try:
+                files_indexed, symbols, edges = run_pass()
+                cons.print(
+                    f"[dim]{datetime.now(UTC).strftime('%H:%M:%S')}[/dim]  "
+                    f"updated: {files_indexed} files, "
+                    f"{symbols} symbols, {edges} edges"
+                )
+            except Exception as exc:  # pragma: no cover - keep watcher alive
+                logger.exception("watch-mode pass failed: %s", exc)
+    except KeyboardInterrupt:
+        cons.print("\n[bold]Stopped.[/bold]")
+    finally:
+        observer.stop()
+        observer.join(timeout=2)
 
 
 def _short_exception_message(producer: str, exc: BaseException) -> str:

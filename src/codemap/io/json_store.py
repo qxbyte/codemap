@@ -352,6 +352,18 @@ class JsonStore:
         self._routes = [r for r in self._routes if str(r.symbol_id) not in removed_ids]
         self._diagnostics = [d for d in self._diagnostics if str(d.file) != target]
 
+    def clear_bridge_outputs(self) -> None:
+        """Drop everything bridges produce: aliases and routes.
+
+        Used by incremental updates before re-running the bridge layer —
+        bridges operate on the global symbol view, so they always re-derive
+        their outputs from scratch.
+        """
+        self._check_writable()
+        self._aliases.clear()
+        self._alias_reverse_idx.clear()
+        self._routes.clear()
+
     def _rebuild_edge_indexes(self) -> None:
         self._callers_idx.clear()
         self._callees_idx.clear()

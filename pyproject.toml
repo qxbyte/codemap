@@ -40,6 +40,7 @@ dev = [
     "import-linter>=2.0",
     "build>=1.2",
     "types-pyyaml>=6.0",
+    "watchdog>=4",
 ]
 
 [project.scripts]
@@ -109,6 +110,7 @@ ignore = [
     "PLR2004",            # magic number in tests
     "PLR0911",            # too many returns — judgement call per function
     "PLR0912",            # too many branches — same
+    "PLR0915",            # too many statements — same
     # The TC contracts (PEP-563) lobby for moving runtime imports into
     # `TYPE_CHECKING`. That's harmful for Pydantic models, Typer commands,
     # and runtime-evaluated Protocols which need the real symbols at runtime.

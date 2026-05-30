@@ -8,6 +8,25 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Incremental + watch (2026-05-30)
+
+- `codemap index --incremental` compares each file's sha256 against the
+  previous `manifest.files` entry and only re-parses changed files. Deleted
+  files are removed; new files are picked up. Bridges re-run from scratch
+  on every incremental pass via a new `JsonStore.clear_bridge_outputs()`
+  helper so cross-module aliases / routes always reflect the current state.
+- `codemap index --watch` keeps the process alive, runs an initial
+  (incremental) pass, and re-indexes after every batch of file-system
+  events (debounced 500 ms). Requires the `watchdog` extra
+  (`pip install codemap[watch]`); the runtime check exits 69 (`EX_UNAVAILABLE`)
+  with a friendly install hint when watchdog is missing.
+- Watch mode ignores events under `.codemap/` to avoid feedback loops on
+  its own writes.
+- 7 e2e tests cover the no-op fast path, modified / deleted / new files,
+  bridge re-evaluation after a rename, fallback to full when no prior
+  index exists, and a real subprocess-based watch test that proves the
+  watcher reacts to a live file change.
+
 ### Added — Cross-module Python call resolution (2026-05-30)
 
 - New `codemap.core.bridge.python_cross_module.PythonCrossModuleBridge`
