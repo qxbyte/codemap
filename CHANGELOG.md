@@ -8,6 +8,28 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Sprint M-1 — HTTP route bridge (2026-05-30)
+
+- `codemap.core.bridge.http_route.HttpRouteBridge` — first cross-language
+  Bridge. Reads `Symbol.extra["http_route"]` (server-side) and
+  `Symbol.extra["http_calls"]` (client-side) metadata and emits
+  `Route` / `Alias` / `Edge` entries pivoting on a synthetic
+  `scip-route` intermediate symbol per `(method, path)`.
+- Path-variable matching (`/user/{id}` ↔ `/user/42`), context-path
+  prefix joining (`context_path` + `path` → `full_path`), and query-string
+  stripping on the client URL.
+- Diagnostics: `ROUTE001` for duplicate server handlers on the same route;
+  `ROUTE002` for high-confidence client calls with no matching server
+  route. Low-confidence (dynamic) client URLs do not warn.
+- Tests: 21 unit cases (covering empty inputs, malformed metadata,
+  path-variable matching, cross-language aggregation, etc.) plus 1
+  integration test wiring the Bridge through a real `JsonStore` round
+  trip on disk. `docs/bridges/http_route.md` documents the metadata
+  contract and known limitations.
+- Registered via `[project.entry-points."codemap.bridges"] http_route =
+  "codemap.core.bridge.http_route:HttpRouteBridge"` — on equal footing
+  with any third-party Bridge (ADR-004).
+
 ### Added — Sprint N-1 — Python indexer (2026-05-30)
 
 - `codemap.indexers.python.PythonIndexer` — first real-language indexer.

@@ -58,6 +58,7 @@ python = "codemap.indexers.python:PythonIndexer"
 
 [project.entry-points."codemap.bridges"]
 # Built-in bridges register here on equal footing with third-party plugins.
+http_route = "codemap.core.bridge.http_route:HttpRouteBridge"
 
 # ---------------------------------------------------------------------------
 # Hatch
