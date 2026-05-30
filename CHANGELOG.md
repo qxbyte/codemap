@@ -8,6 +8,35 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Swift, Kotlin, Ruby, PHP independent PyPI plugins (2026-05-30)
+
+- `plugins/codemap-swift/` — `tree-sitter-swift` backed. Class / struct /
+  enum / protocol kept under `extra.swift_kind`; functions and `init`
+  inside types become methods; top-level `let`/`var` become variables.
+  14 unit tests. Scheme `scip-swift`.
+- `plugins/codemap-kotlin/` — `tree-sitter-kotlin` backed. Class /
+  interface / object under `extra.kotlin_kind`, package header captured
+  as `extra.package`, `fun` inside type → method, top-level `val`/`var`
+  → variable. Supports both `.kt` and `.kts`. 14 unit tests. Scheme
+  `scip-kotlin`.
+- `plugins/codemap-ruby/` — `tree-sitter-ruby` backed. Class / module
+  under `extra.ruby_kind`, top-level `def` → function, `def` inside
+  type → method, `def self.x` → method with `extra.ruby_kind=singleton`.
+  Nested module/class produces qualified `Outer#Inner#m()` IDs. 13 unit
+  tests. Scheme `scip-ruby`.
+- `plugins/codemap-php/` — `tree-sitter-php` backed. Class / interface /
+  trait / enum under `extra.php_kind`, `namespace_definition` captured
+  as `extra.namespace`, method / property / const declarations inside
+  types, free `function_definition` at module level, top-level `const`
+  as variable. 13 unit tests. Scheme `scip-php`.
+- README (both languages) updated with 4 new subdirectory install
+  commands and the expanded doctor table (10 indexers total: 1
+  reference + 9 language plugins).
+- End-to-end smoke fixture: 9 User-class files across Java / Go / Rust /
+  TypeScript / Python / Swift / Kotlin / Ruby / PHP indexed in one
+  `codemap index` pass — 24 symbols across 9 SCIP schemes, 0
+  diagnostics, both bridges executed.
+
 ### Added — Java, Go, Rust independent PyPI plugins (2026-05-30)
 
 - `plugins/codemap-java/` — Java indexer backed by `tree-sitter-java`.

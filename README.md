@@ -104,6 +104,18 @@ pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/code
 
 # Rust
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
+
+# Swift
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-swift"
+
+# Kotlin
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-kotlin"
+
+# Ruby
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-ruby"
+
+# PHP
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
 ```
 
 Each plugin declares `codemap` as a dependency, so pip will pull the
@@ -126,6 +138,10 @@ pip install -e plugins/codemap-typescript
 pip install -e plugins/codemap-java
 pip install -e plugins/codemap-go
 pip install -e plugins/codemap-rust
+pip install -e plugins/codemap-swift
+pip install -e plugins/codemap-kotlin
+pip install -e plugins/codemap-ruby
+pip install -e plugins/codemap-php
 ```
 
 ### 5. System requirements
@@ -161,6 +177,10 @@ project_root: /your/path
 ┃ java          │ 0.1.0   │ java       │ *.java        │
 ┃ go            │ 0.1.0   │ go         │ *.go          │
 ┃ rust          │ 0.1.0   │ rust       │ *.rs          │
+┃ swift         │ 0.1.0   │ swift      │ *.swift       │
+┃ kotlin        │ 0.1.0   │ kotlin     │ *.kt, *.kts   │
+┃ ruby          │ 0.1.0   │ ruby       │ *.rb          │
+┃ php           │ 0.1.0   │ php        │ *.php         │
 
            Registered bridges
 ┃ name                 ┃ version ┃ requires ┃
@@ -247,6 +267,10 @@ file contributed each value.
 | `java` | `*.java` | [`plugins/codemap-java/`](plugins/codemap-java) | independent plugin |
 | `go` | `*.go` | [`plugins/codemap-go/`](plugins/codemap-go) | independent plugin |
 | `rust` | `*.rs` | [`plugins/codemap-rust/`](plugins/codemap-rust) | independent plugin |
+| `swift` | `*.swift` | [`plugins/codemap-swift/`](plugins/codemap-swift) | independent plugin |
+| `kotlin` | `*.kt`, `*.kts` | [`plugins/codemap-kotlin/`](plugins/codemap-kotlin) | independent plugin |
+| `ruby` | `*.rb` | [`plugins/codemap-ruby/`](plugins/codemap-ruby) | independent plugin |
+| `php` | `*.php` | [`plugins/codemap-php/`](plugins/codemap-php) | independent plugin |
 | `_example_lang` | `*.example` | main repo | reference / smoke |
 
 | Bridge | Purpose |

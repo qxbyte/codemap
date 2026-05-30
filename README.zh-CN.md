@@ -96,6 +96,18 @@ pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/code
 
 # Rust
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
+
+# Swift
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-swift"
+
+# Kotlin
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-kotlin"
+
+# Ruby
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-ruby"
+
+# PHP
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
 ```
 
 每个插件都声明依赖 `codemap`,所以如果没装主包,pip 会一起拉取。
@@ -116,6 +128,10 @@ pip install -e plugins/codemap-typescript
 pip install -e plugins/codemap-java
 pip install -e plugins/codemap-go
 pip install -e plugins/codemap-rust
+pip install -e plugins/codemap-swift
+pip install -e plugins/codemap-kotlin
+pip install -e plugins/codemap-ruby
+pip install -e plugins/codemap-php
 ```
 
 ### 5. 系统要求
@@ -151,6 +167,10 @@ project_root: /your/path
 ┃ java          │ 0.1.0   │ java       │ *.java        │
 ┃ go            │ 0.1.0   │ go         │ *.go          │
 ┃ rust          │ 0.1.0   │ rust       │ *.rs          │
+┃ swift         │ 0.1.0   │ swift      │ *.swift       │
+┃ kotlin        │ 0.1.0   │ kotlin     │ *.kt, *.kts   │
+┃ ruby          │ 0.1.0   │ ruby       │ *.rb          │
+┃ php           │ 0.1.0   │ php        │ *.php         │
 
            Registered bridges
 ┃ name                 ┃ version ┃ requires ┃
@@ -234,6 +254,10 @@ bridges:
 | `java` | `*.java` | [`plugins/codemap-java/`](plugins/codemap-java) | 独立插件包 |
 | `go` | `*.go` | [`plugins/codemap-go/`](plugins/codemap-go) | 独立插件包 |
 | `rust` | `*.rs` | [`plugins/codemap-rust/`](plugins/codemap-rust) | 独立插件包 |
+| `swift` | `*.swift` | [`plugins/codemap-swift/`](plugins/codemap-swift) | 独立插件包 |
+| `kotlin` | `*.kt`, `*.kts` | [`plugins/codemap-kotlin/`](plugins/codemap-kotlin) | 独立插件包 |
+| `ruby` | `*.rb` | [`plugins/codemap-ruby/`](plugins/codemap-ruby) | 独立插件包 |
+| `php` | `*.php` | [`plugins/codemap-php/`](plugins/codemap-php) | 独立插件包 |
 | `_example_lang` | `*.example` | 主仓库 | 参考实现 / 烟雾测试 |
 
 | Bridge | 作用 |
