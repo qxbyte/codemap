@@ -10,8 +10,14 @@ from typing import Annotated
 import typer
 
 from codemap import __version__
+from codemap.cli.commands import callees as callees_cmd
+from codemap.cli.commands import callers as callers_cmd
 from codemap.cli.commands import doctor as doctor_cmd
+from codemap.cli.commands import get as get_cmd
 from codemap.cli.commands import index as index_cmd
+from codemap.cli.commands import routes as routes_cmd
+from codemap.cli.commands import search as search_cmd
+from codemap.cli.commands import trace as trace_cmd
 from codemap.diagnostics.logging import LogFormat, configure_logging
 
 app = typer.Typer(
@@ -79,6 +85,12 @@ def _root(
 # Register subcommands
 doctor_cmd.register(app)
 index_cmd.register(app)
+search_cmd.register(app)
+get_cmd.register(app)
+callers_cmd.register(app)
+callees_cmd.register(app)
+trace_cmd.register(app)
+routes_cmd.register(app)
 
 
 def main() -> None:  # pragma: no cover - thin wrapper

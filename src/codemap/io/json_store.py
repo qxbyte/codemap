@@ -199,6 +199,15 @@ class JsonStore:
     def iter_edges(self) -> Iterator[Edge]:
         return iter(self._edges)
 
+    def iter_routes(self) -> Iterator[Route]:
+        return iter(self._routes)
+
+    def iter_aliases(self) -> Iterator[Alias]:
+        return iter(self._aliases)
+
+    def iter_diagnostics(self) -> Iterator[Diagnostic]:
+        return iter(self._diagnostics)
+
     def callers(self, sid: SymbolID, *, depth: int = 1) -> list[Edge]:
         return self._walk(sid, self._callers_idx, depth, key=lambda e: e.source)
 

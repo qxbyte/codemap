@@ -8,6 +8,28 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Query commands (2026-05-30)
+
+- `codemap search QUERY` — keyword search across symbol IDs / signatures / docs.
+- `codemap get <symbol-id>` — fetch one symbol's definition site, doc, and a
+  source-line snippet. Exits 1 if not found, 64 (`EX_USAGE`) on malformed
+  SymbolID, 66 (`EX_NOINPUT`) when `.codemap/` is missing.
+- `codemap callers <symbol-id> [-d N]` — every edge whose target matches the
+  given id (depth-limited).
+- `codemap callees <symbol-id> [-d N]` — every edge whose source matches.
+- `codemap trace --from <id> [--to <id>] [-d N]` — BFS downstream walk or
+  bidirectional shortest-path between two symbols, with rich-tree text output
+  and a structured JSON envelope.
+- `codemap routes [--method M]` — list every HTTP route the `http_route`
+  bridge has registered, with handler `file:line` references.
+- `codemap.core.graph` — depth-limited downstream `walk_chain` and
+  bidirectional `shortest_path` (capped per-side, so `-d N` finds paths up
+  to `2N` hops).
+- All commands accept `--project / -p`, support `--json`, and use the same
+  exit-code conventions (ADR-005). 14 graph unit tests + 19 end-to-end CLI
+  tests cover the new surface. `docs/cli.md` documents every command and its
+  JSON shape.
+
 ### Added — Sprint M-1 — HTTP route bridge (2026-05-30)
 
 - `codemap.core.bridge.http_route.HttpRouteBridge` — first cross-language
