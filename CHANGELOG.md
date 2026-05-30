@@ -8,6 +8,23 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Diagnostics command + error UX (2026-05-30)
+
+- New `codemap diagnostics` command lists diagnostics recorded during the
+  last `codemap index`. Filters: `--severity` (error/warning/info),
+  `--producer` (indexer or bridge name), `--code` (e.g. `ROUTE001`),
+  `--limit`. Both human and JSON outputs.
+- Indexer crashes mid-file now become an `INDEXER_CRASH` diagnostic
+  instead of being buried in stderr. Bridge crashes become
+  `BRIDGE_CRASH`. Unreadable source files become `IO001`. The run
+  completes either way.
+- `codemap index --dry-run` walks the project and reports the per-indexer
+  file counts without writing `.codemap/`.
+- Friendly CLI exception wrapper: unhandled exceptions print a short
+  marked-up "Internal error" message with the issue tracker URL and exit
+  70 (`EX_SOFTWARE`). Set `CODEMAP_FULL_TRACEBACK=1` for the full
+  traceback.
+
 ### Added — Configuration file (2026-05-30)
 
 - `.codemap/config.yaml` now actually loads, replacing the previous empty
