@@ -8,6 +8,46 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — C / C++ / C# / Scala independent PyPI plugins (2026-05-30)
+
+- `plugins/codemap-c/` — `tree-sitter-c` backed. Captures
+  `function_definition`, named `struct_specifier` / `union_specifier`
+  with bodies (with their `field_declaration` members), named
+  `enum_specifier` (with enumerators as fields), `type_definition`
+  (`typedef`), object and function-like `preproc_def` macros, and
+  top-level `declaration` with an initializer. Function bodies are
+  opaque so locals do not leak as script-level symbols.
+  15 unit tests. Scheme `scip-c`. Files: `*.c`, `*.h`.
+- `plugins/codemap-cpp/` — `tree-sitter-cpp` backed. Recurses through
+  `namespace_definition` so descriptors carry the full namespace chain;
+  unwraps `template_declaration` to surface the inner function or class.
+  Captures `class_specifier` / `struct_specifier` / `union_specifier`
+  (with `extra.cpp_kind`), `enum_specifier`, top-level and in-class
+  `function_definition` (as `function` / `method`), and data-member
+  `field_declaration`. 13 unit tests. Scheme `scip-cpp`. Files: `*.cpp`,
+  `*.cc`, `*.cxx`, `*.hpp`, `*.hh`, `*.hxx`.
+- `plugins/codemap-csharp/` — `tree-sitter-c-sharp` backed.
+  `namespace_declaration` is walked and dotted `qualified_name`
+  (`App.Core.Util`) is split into individual NAMESPACE descriptors.
+  Captures `class_declaration` / `interface_declaration` /
+  `struct_declaration` / `record_declaration` / `enum_declaration` /
+  `delegate_declaration` (all as `class` with distinguishing
+  `extra.csharp_kind`), `method_declaration`, `property_declaration`,
+  multi-declarator `field_declaration`, and `enum_member_declaration`.
+  13 unit tests. Scheme `scip-csharp`. Files: `*.cs`, `*.csx`.
+- `plugins/codemap-scala/` — `tree-sitter-scala` backed. Leading
+  `package_clause` prefixes every symbol with NAMESPACE descriptors.
+  Captures `class_definition` (including `case class` — with its
+  `class_parameter`s emitted as fields), `object_definition`,
+  `trait_definition`, top-level `type_definition`,
+  `function_definition` / `function_declaration` (as methods), and
+  `val_definition` / `var_definition` (as fields, tagged with
+  `extra.scala_kind`). Nested members inside template bodies are
+  scoped under the enclosing type. 13 unit tests. Scheme `scip-scala`.
+  Files: `*.scala`, `*.sc`.
+- `codemap doctor` now lists **15 indexers** (the four built-ins plus
+  ten plugin-shipped grammars).
+
 ### Fixed — CI: `astral-sh/setup-uv@v3` fails without `uv.lock` (2026-05-30)
 
 - Both `test.yml` and `bench.yml` workflows enabled `cache: true` on

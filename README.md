@@ -122,6 +122,18 @@ pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/code
 
 # Bash / shell scripts
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
+
+# C
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-c"
+
+# C++
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-cpp"
+
+# C#
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-csharp"
+
+# Scala
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-scala"
 ```
 
 Each plugin declares `codemap` as a dependency, so pip will pull the
@@ -150,6 +162,10 @@ pip install -e plugins/codemap-ruby
 pip install -e plugins/codemap-php
 pip install -e plugins/codemap-sql
 pip install -e plugins/codemap-bash
+pip install -e plugins/codemap-c
+pip install -e plugins/codemap-cpp
+pip install -e plugins/codemap-csharp
+pip install -e plugins/codemap-scala
 ```
 
 ### 5. System requirements
@@ -191,6 +207,10 @@ project_root: /your/path
 ┃ php           │ 0.1.0   │ php        │ *.php         │
 ┃ sql           │ 0.1.0   │ sql        │ *.sql, *.ddl  │
 ┃ bash          │ 0.1.0   │ bash       │ *.sh, *.bash, *.bats │
+┃ c             │ 0.1.0   │ c          │ *.c, *.h      │
+┃ cpp           │ 0.1.0   │ cpp        │ *.cpp, *.cc, *.cxx, *.hpp, *.hh, *.hxx │
+┃ csharp        │ 0.1.0   │ csharp     │ *.cs, *.csx   │
+┃ scala         │ 0.1.0   │ scala      │ *.scala, *.sc │
 
            Registered bridges
 ┃ name                 ┃ version ┃ requires ┃
@@ -283,6 +303,10 @@ file contributed each value.
 | `php` | `*.php` | [`plugins/codemap-php/`](plugins/codemap-php) | independent plugin |
 | `sql` | `*.sql`, `*.ddl` | [`plugins/codemap-sql/`](plugins/codemap-sql) | independent plugin (DDL only) |
 | `bash` | `*.sh`, `*.bash`, `*.bats` | [`plugins/codemap-bash/`](plugins/codemap-bash) | independent plugin |
+| `c` | `*.c`, `*.h` | [`plugins/codemap-c/`](plugins/codemap-c) | independent plugin |
+| `cpp` | `*.cpp`, `*.cc`, `*.cxx`, `*.hpp`, `*.hh`, `*.hxx` | [`plugins/codemap-cpp/`](plugins/codemap-cpp) | independent plugin |
+| `csharp` | `*.cs`, `*.csx` | [`plugins/codemap-csharp/`](plugins/codemap-csharp) | independent plugin |
+| `scala` | `*.scala`, `*.sc` | [`plugins/codemap-scala/`](plugins/codemap-scala) | independent plugin |
 | `_example_lang` | `*.example` | main repo | reference / smoke |
 
 | Bridge | Purpose |

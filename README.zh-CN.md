@@ -114,6 +114,18 @@ pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/code
 
 # Bash / shell 脚本
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
+
+# C
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-c"
+
+# C++
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-cpp"
+
+# C#
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-csharp"
+
+# Scala
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-scala"
 ```
 
 每个插件都声明依赖 `codemap`,所以如果没装主包,pip 会一起拉取。
@@ -140,6 +152,10 @@ pip install -e plugins/codemap-ruby
 pip install -e plugins/codemap-php
 pip install -e plugins/codemap-sql
 pip install -e plugins/codemap-bash
+pip install -e plugins/codemap-c
+pip install -e plugins/codemap-cpp
+pip install -e plugins/codemap-csharp
+pip install -e plugins/codemap-scala
 ```
 
 ### 5. 系统要求
@@ -181,6 +197,10 @@ project_root: /your/path
 ┃ php           │ 0.1.0   │ php        │ *.php         │
 ┃ sql           │ 0.1.0   │ sql        │ *.sql, *.ddl  │
 ┃ bash          │ 0.1.0   │ bash       │ *.sh, *.bash, *.bats │
+┃ c             │ 0.1.0   │ c          │ *.c, *.h      │
+┃ cpp           │ 0.1.0   │ cpp        │ *.cpp, *.cc, *.cxx, *.hpp, *.hh, *.hxx │
+┃ csharp        │ 0.1.0   │ csharp     │ *.cs, *.csx   │
+┃ scala         │ 0.1.0   │ scala      │ *.scala, *.sc │
 
            Registered bridges
 ┃ name                 ┃ version ┃ requires ┃
@@ -270,6 +290,10 @@ bridges:
 | `php` | `*.php` | [`plugins/codemap-php/`](plugins/codemap-php) | 独立插件包 |
 | `sql` | `*.sql`, `*.ddl` | [`plugins/codemap-sql/`](plugins/codemap-sql) | 独立插件包(仅 DDL) |
 | `bash` | `*.sh`, `*.bash`, `*.bats` | [`plugins/codemap-bash/`](plugins/codemap-bash) | 独立插件包 |
+| `c` | `*.c`, `*.h` | [`plugins/codemap-c/`](plugins/codemap-c) | 独立插件包 |
+| `cpp` | `*.cpp`, `*.cc`, `*.cxx`, `*.hpp`, `*.hh`, `*.hxx` | [`plugins/codemap-cpp/`](plugins/codemap-cpp) | 独立插件包 |
+| `csharp` | `*.cs`, `*.csx` | [`plugins/codemap-csharp/`](plugins/codemap-csharp) | 独立插件包 |
+| `scala` | `*.scala`, `*.sc` | [`plugins/codemap-scala/`](plugins/codemap-scala) | 独立插件包 |
 | `_example_lang` | `*.example` | 主仓库 | 参考实现 / 烟雾测试 |
 
 | Bridge | 作用 |
