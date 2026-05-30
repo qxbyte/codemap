@@ -8,6 +8,28 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Python HTTP recognition + benchmark gate (2026-05-30)
+
+- **Python indexer** now produces `http_route` and `http_calls` metadata
+  for the `http_route` bridge to consume — meaning the cross-language
+  pipeline works end-to-end on real Python projects, not just synthetic
+  fixtures. Recognises FastAPI-style verb decorators (`@app.get("/x")`),
+  Flask-style `@route("/x", methods=[...])`, and `requests` / `httpx` /
+  `aiohttp` / `urllib3` client calls. URL-like heuristic (`/` or `http(s)://`)
+  filters out incidental `dict.get("key")` calls. 17 new unit tests cover
+  the matrix; 4 e2e tests prove `codemap routes` and `codemap callers`
+  surface the linked client→server graph after a single `codemap index`.
+- **Benchmark suite** (`tests/bench/`) with `pytest-benchmark`, gated behind
+  the `bench` marker so the default `pytest` run is unaffected. Six
+  measurements: full-index throughput, callers / callees / search / walk /
+  shortest_path. Targets are documented in `docs/performance.md`.
+- **ADR-010 (benchmark regression gate)** flipped from Proposed to
+  **Accepted**. Current baseline on the CodeMap repo: full-index 73 ms /
+  callers 4.7 µs / callees 26 µs / walk depth-10 72 µs — every target from
+  design §21 cleared by orders of magnitude. `.github/workflows/bench.yml`
+  runs the suite on every PR and fails the build on ≥ 20 % median
+  regression vs. main.
+
 ### Added — Query commands (2026-05-30)
 
 - `codemap search QUERY` — keyword search across symbol IDs / signatures / docs.

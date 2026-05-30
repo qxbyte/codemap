@@ -366,6 +366,226 @@ def test_scheme_is_consistent() -> None:
 
 
 # ---------------------------------------------------------------------------
+# HTTP route recognition (decorator-driven)
+# ---------------------------------------------------------------------------
+
+
+def _function_sym(result: IndexResult, name: str):  # type: ignore[no-untyped-def]
+    for s in result.symbols:
+        if str(s.id).endswith(f"/{name}()."):
+            return s
+    raise AssertionError(f"no symbol named {name!r} in {[str(s.id) for s in result.symbols]}")
+
+
+def test_http_route_fastapi_style_get() -> None:
+    r = _index(
+        """
+        @app.get("/api/users")
+        def list_users():
+            ...
+        """
+    )
+    sym = _function_sym(r, "list_users")
+    assert sym.extra["http_route"] == {"method": "GET", "path": "/api/users"}
+
+
+def test_http_route_fastapi_post() -> None:
+    r = _index(
+        """
+        @router.post("/api/user")
+        def create():
+            ...
+        """
+    )
+    sym = _function_sym(r, "create")
+    assert sym.extra["http_route"]["method"] == "POST"
+    assert sym.extra["http_route"]["path"] == "/api/user"
+
+
+def test_http_route_flask_style_default_get() -> None:
+    r = _index(
+        """
+        @app.route("/api/x")
+        def f():
+            ...
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert sym.extra["http_route"] == {"method": "GET", "path": "/api/x"}
+
+
+def test_http_route_flask_methods_list() -> None:
+    r = _index(
+        """
+        @app.route("/api/x", methods=["POST", "PUT"])
+        def f():
+            ...
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert sym.extra["http_route"]["method"] == "POST"
+
+
+def test_http_route_bare_route_decorator() -> None:
+    r = _index(
+        """
+        @route("/x", method="DELETE")
+        def f():
+            ...
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert sym.extra["http_route"]["method"] == "DELETE"
+
+
+def test_http_route_async_endpoint() -> None:
+    r = _index(
+        """
+        @app.get("/api/x")
+        async def f():
+            ...
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert sym.extra["http_route"]["path"] == "/api/x"
+    assert sym.extra["async"] is True
+
+
+def test_http_route_ignored_when_path_is_dynamic() -> None:
+    r = _index(
+        """
+        PATH = "/api/x"
+        @app.get(PATH)
+        def f():
+            ...
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert "http_route" not in sym.extra
+
+
+def test_http_route_ignored_when_no_decorators() -> None:
+    r = _index("def f(): ...\n")
+    sym = _function_sym(r, "f")
+    assert "http_route" not in sym.extra
+
+
+def test_non_route_decorator_ignored() -> None:
+    r = _index(
+        """
+        @staticmethod
+        @cache
+        def f(): ...
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert "http_route" not in sym.extra
+
+
+# ---------------------------------------------------------------------------
+# HTTP client call recognition (function-body driven)
+# ---------------------------------------------------------------------------
+
+
+def test_http_client_requests_get() -> None:
+    r = _index(
+        """
+        def fetch():
+            return requests.get("/api/users")
+        """
+    )
+    sym = _function_sym(r, "fetch")
+    calls = sym.extra["http_calls"]
+    assert calls == [
+        {"method": "GET", "url": "/api/users", "confidence": "high"},
+    ]
+
+
+def test_http_client_httpx_post_full_url() -> None:
+    r = _index(
+        """
+        def post_user():
+            httpx.post("https://api.example.com/user")
+        """
+    )
+    sym = _function_sym(r, "post_user")
+    assert sym.extra["http_calls"][0]["method"] == "POST"
+    assert sym.extra["http_calls"][0]["url"] == "https://api.example.com/user"
+
+
+def test_http_client_unknown_receiver_medium_confidence() -> None:
+    r = _index(
+        """
+        def fetch():
+            self.client.get("/api/x")
+        """
+    )
+    sym = _function_sym(r, "fetch")
+    assert sym.extra["http_calls"][0]["confidence"] == "medium"
+
+
+def test_http_client_dict_get_is_ignored() -> None:
+    """``dict.get('key')`` shares the ``.get(str)`` shape but is not HTTP."""
+    r = _index(
+        """
+        def f(d):
+            d.get("name")
+            d.get("user_id")
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert "http_calls" not in sym.extra
+
+
+def test_http_client_multiple_calls_collected() -> None:
+    r = _index(
+        """
+        def workflow():
+            requests.get("/api/a")
+            requests.post("/api/b")
+        """
+    )
+    sym = _function_sym(r, "workflow")
+    methods = [c["method"] for c in sym.extra["http_calls"]]
+    assert methods == ["GET", "POST"]
+
+
+def test_http_client_in_nested_block() -> None:
+    r = _index(
+        """
+        def f(x):
+            if x:
+                requests.get("/api/ok")
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert sym.extra["http_calls"][0]["url"] == "/api/ok"
+
+
+def test_http_client_dynamic_url_ignored() -> None:
+    r = _index(
+        """
+        def f(url):
+            requests.get(url)
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert "http_calls" not in sym.extra
+
+
+def test_http_client_relative_path_required() -> None:
+    """Paths not starting with `/` or `http(s)://` are ignored."""
+    r = _index(
+        """
+        def f():
+            self.session.get("relative/path")
+        """
+    )
+    sym = _function_sym(r, "f")
+    assert "http_calls" not in sym.extra
+
+
+# ---------------------------------------------------------------------------
 # Golden directory fixture runner
 # ---------------------------------------------------------------------------
 

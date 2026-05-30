@@ -222,6 +222,14 @@ class _Visitor(ast.NodeVisitor):
             extra["async"] = True
         if node.decorator_list:
             extra["decorators"] = _decorator_names(node.decorator_list)
+
+        http_route = _extract_http_route(node.decorator_list)
+        if http_route is not None:
+            extra["http_route"] = http_route
+        http_calls = _extract_http_calls(node.body)
+        if http_calls:
+            extra["http_calls"] = http_calls
+
         sym = Symbol(
             id=sid,
             kind=kind,
@@ -441,6 +449,129 @@ def _format_attr(node: ast.AST) -> str | None:
         head = _format_attr(node.value)
         return f"{head}.{node.attr}" if head else node.attr
     return None
+
+
+# ---------------------------------------------------------------------------
+# HTTP route / call recognition (framework-agnostic, pattern-driven)
+# ---------------------------------------------------------------------------
+
+_HTTP_VERB_NAMES = frozenset({"get", "post", "put", "delete", "patch", "head", "options"})
+_HTTP_HIGH_CONF_CLIENTS = frozenset({"requests", "httpx", "aiohttp", "urllib3"})
+
+
+def _extract_http_route(decorators: list[ast.expr]) -> dict[str, str] | None:
+    """Return the ``http_route`` metadata if any decorator looks like a route.
+
+    Two patterns are recognised, both framework-neutral:
+
+    * ``@<obj>.{get,post,put,delete,patch,head,options}("/path")`` — the
+      decorator's attribute name is the HTTP method.
+    * ``@route("/path", methods=[...])`` or ``@<obj>.route("/path", method=...)``
+      — the method defaults to ``GET`` when no kwarg is given.
+
+    The path must be a literal string; dynamic paths (variables, concatenation)
+    cannot be statically recovered and are ignored here — Bridges that need
+    them must look in the source file.
+    """
+    for dec in decorators:
+        if not isinstance(dec, ast.Call):
+            continue
+        func = dec.func
+
+        # Pattern 1: <obj>.<verb>("path", ...)
+        if isinstance(func, ast.Attribute):
+            attr = func.attr.lower()
+            if attr in _HTTP_VERB_NAMES:
+                path = _first_str_arg(dec)
+                if path is not None:
+                    return {"method": attr.upper(), "path": path}
+
+        # Pattern 2: route("path", method[s]=...) or <obj>.route("path", ...)
+        verb_name: str | None = None
+        if isinstance(func, ast.Name) and func.id == "route":
+            verb_name = "route"
+        elif isinstance(func, ast.Attribute) and func.attr in {"route", "add_url_rule"}:
+            verb_name = func.attr
+        if verb_name is not None:
+            path = _first_str_arg(dec)
+            if path is not None:
+                method = _method_from_kwargs(dec) or "GET"
+                return {"method": method, "path": path}
+    return None
+
+
+def _first_str_arg(call: ast.Call) -> str | None:
+    """Return ``call.args[0]`` if it is a string literal, else ``None``."""
+    if not call.args:
+        return None
+    first = call.args[0]
+    if isinstance(first, ast.Constant) and isinstance(first.value, str):
+        return first.value
+    return None
+
+
+def _method_from_kwargs(call: ast.Call) -> str | None:
+    """Pull the HTTP method out of ``method=...`` or ``methods=[...]`` kwargs."""
+    for kw in call.keywords:
+        if kw.arg not in {"method", "methods"}:
+            continue
+        value = kw.value
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            return value.value.upper()
+        if isinstance(value, ast.List | ast.Tuple) and value.elts:
+            first = value.elts[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                return first.value.upper()
+    return None
+
+
+def _extract_http_calls(body: list[ast.stmt]) -> list[dict[str, str]]:
+    """Walk ``body`` and collect ``<obj>.<verb>("url", ...)`` HTTP calls.
+
+    The first positional argument must be a string literal that *looks* like a
+    URL — leading ``/`` or ``http(s)://``. Without that guard, harmless calls
+    like ``dict.get("key")`` would flood the index.
+
+    Confidence is ``high`` when the receiver is a well-known HTTP client
+    library (``requests`` / ``httpx`` / ``aiohttp`` / ``urllib3``), ``medium``
+    otherwise — for those, the receiver name didn't prove the caller meant a
+    network request.
+    """
+    out: list[dict[str, str]] = []
+    for stmt in body:
+        for node in ast.walk(stmt):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if not isinstance(func, ast.Attribute):
+                continue
+            verb = func.attr.lower()
+            if verb not in _HTTP_VERB_NAMES:
+                continue
+            url = _first_str_arg(node)
+            if url is None or not _looks_like_url(url):
+                continue
+            receiver_head = _attr_head(func.value)
+            confidence = "high" if receiver_head in _HTTP_HIGH_CONF_CLIENTS else "medium"
+            out.append(
+                {
+                    "method": verb.upper(),
+                    "url": url,
+                    "confidence": confidence,
+                }
+            )
+    return out
+
+
+def _looks_like_url(s: str) -> bool:
+    return s.startswith("/") or s.startswith(("http://", "https://"))
+
+
+def _attr_head(node: ast.AST) -> str | None:
+    """Return the leftmost ``ast.Name.id`` in an attribute chain."""
+    while isinstance(node, ast.Attribute):
+        node = node.value
+    return node.id if isinstance(node, ast.Name) else None
 
 
 __all__ = ["LANG", "SCHEME", "PythonIndexer"]

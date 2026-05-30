@@ -36,6 +36,41 @@
 Decorators are captured as `symbol.extra["decorators"] = ["staticmethod", ...]`.
 The `signature` field stores a readable `def name(args)` reconstruction.
 
+### HTTP route / call recognition
+
+The Python indexer also produces the `http_route` and `http_calls` metadata
+the [`http_route` bridge](../bridges/http_route.md) consumes. The recognition
+is **pattern-driven**, not framework-specific:
+
+| Pattern | Sets |
+|---|---|
+| `@<obj>.{get,post,put,delete,patch,head,options}("/path")` | `extra["http_route"] = {"method": "GET", "path": "/path"}` — Works for FastAPI, FastAPI router, Bottle, Starlette, and any other library using verb-named decorators. |
+| `@route("/path", methods=[...])` or `@<obj>.route("/path", method=...)` | `extra["http_route"]` with method from kwargs (defaults to `GET`) — Works for Flask, Quart, Sanic, etc. |
+| `@<obj>.add_url_rule("/path", methods=...)` | Same as above. |
+
+Function bodies are scanned for receiver-style HTTP calls:
+
+| Pattern | Sets |
+|---|---|
+| `requests.get("/api/x")`, `httpx.post("...")`, etc. | `extra["http_calls"]` entry with `confidence=high` when the receiver is `requests` / `httpx` / `aiohttp` / `urllib3` |
+| `self.client.get("/api/x")`, `session.post("...")`, etc. | Same shape but `confidence=medium` — receiver name didn't prove HTTP intent |
+
+A URL-like heuristic gates client recognition: the first positional argument
+must be a string literal starting with `/` or `http(s)://`. Without it,
+common calls like `dict.get("key")` would flood the index.
+
+Limitations:
+
+* **Dynamic paths** (variables, concatenation, f-strings) are silently
+  dropped — they can't be statically resolved. Use `codemap search` and read
+  the source if you need them.
+* **Re-exported decorators** that rebind the verb (`from somelib import get
+  as fetch; @app.fetch(...)`) are not recognised because the indexer can't
+  follow runtime renames.
+* **Class-level route prefixes** (`@app.include_router(r, prefix="/api/v1")`)
+  are an indexer concern that may land in a follow-up Sprint. For now, set
+  `context_path` manually on the decorator if your framework allows.
+
 ## SymbolID encoding
 
 The file path is encoded as a chain of `namespace` descriptors:

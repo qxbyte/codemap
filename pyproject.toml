@@ -159,10 +159,13 @@ addopts = [
     "--cov=codemap",
     "--cov-report=term-missing",
     "--cov-fail-under=80",
+    # Skip benchmark suite by default; opt in with `-m bench`.
+    "-m",
+    "not bench",
 ]
 markers = [
     "slow: tests that take >1s",
-    "bench: benchmark tests (skipped by default)",
+    "bench: benchmark tests (skipped by default; run with `pytest -m bench`)",
 ]
 
 [tool.coverage.run]
