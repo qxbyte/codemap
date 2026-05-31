@@ -97,8 +97,12 @@ jobs:
 
       - name: Create isolated build venv
         run: |
+          # `uv venv` does not bootstrap pip into the venv. Use
+          # `uv pip install --python` rather than `<venv>/bin/pip`
+          # (which does not exist) to install build & twine.
+          # Same fix as PR #2 / #3 made to bench.yml.
           uv venv --python ${{ env.BUILD_PYTHON_VERSION }} /tmp/build-env
-          /tmp/build-env/bin/pip install build twine
+          uv pip install --python /tmp/build-env/bin/python build twine
 
       - name: Build sdist + wheel
         working-directory: ${{ matrix.package.dir }}

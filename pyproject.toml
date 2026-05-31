@@ -12,7 +12,7 @@ build-backend = "hatchling.build"
 # (`codemap-java`, `codemap-go`, …) — this is the engine; the others
 # are language adapters.
 name = "codemap-core"
-version = "0.1.0a2"
+version = "0.1.0a3"
 description = "Language-neutral code index for AI agents"
 readme = "README.md"
 license = { file = "LICENSE" }
