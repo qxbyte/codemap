@@ -2,7 +2,7 @@
 
 [English](./README.md) · **简体中文**
 
-> 面向 AI Agent 的语言中立代码索引 —— 不必全项目搜索即可精确导航。
+> 面向 AI Agent 的代码索引 —— 不必全项目搜索即可精确导航。
 
 CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI Agent
 (Claude Code、Cursor、Codex 等)无需 grep 整个项目即可拿到调用链、
