@@ -26,7 +26,7 @@ Top-level statements (C# 9+) are not surfaced as named symbols.
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-csharp"
+pip install codemap-csharp
 ```
 
 ## File patterns

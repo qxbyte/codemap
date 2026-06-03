@@ -22,7 +22,7 @@ Backed by `tree-sitter-cpp`:
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-cpp"
+pip install codemap-cpp
 ```
 
 ## File patterns

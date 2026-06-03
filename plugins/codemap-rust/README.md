@@ -31,7 +31,7 @@ scip-rust . . . src/user.rs/User#login().
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
+pip install codemap-rust
 ```
 
 After install, `codemap doctor` lists `rust` alongside the other

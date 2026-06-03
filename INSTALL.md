@@ -2,11 +2,17 @@
 
 **English** · [简体中文](./INSTALL.zh-CN.md)
 
-> The commands in this document were executed end-to-end on a fresh
-> Python 3.12 virtual environment on 2026-05-30 against
-> [`qxbyte/codemap@main`](https://github.com/qxbyte/codemap). The
-> [Validation log](#7-validation-log) at the end of this document is a
-> verbatim transcript of that run.
+> As of **0.1.0** (2026-06-03), CodeMap is published to PyPI under the
+> distribution names `codemap-core` (main) and `codemap-<lang>` (14
+> language plugins). The instructions below use PyPI as the primary
+> install source; the [Install from git](#28-install-from-git-track-main-pin-to-a-commit)
+> section retains the older `git+https://…` form for users who need to
+> track `main` or pin to a specific commit. The
+> [Validation log](#7-validation-log) at the end is a verbatim
+> transcript from the pre-release 2026-05-30 run against
+> [`qxbyte/codemap@c4cd436`](https://github.com/qxbyte/codemap/commit/c4cd436);
+> the commands and numbers there are accurate but use the older
+> `git+https://…` install URL.
 
 ---
 
@@ -15,8 +21,10 @@
 - [TL;DR](#tldr)
 - [1. Requirements](#1-requirements)
 - [2. Install the main CLI](#2-install-the-main-cli)
+  - [2.8 Install from git](#28-install-from-git-track-main-pin-to-a-commit)
 - [3. Verify](#3-verify)
 - [4. Add language plugins](#4-add-language-plugins)
+  - [4.6 From git](#46-from-git-track-main-pin-to-a-commit)
 - [5. First-time usage](#5-first-time-usage)
 - [6. Upgrade and uninstall](#6-upgrade-and-uninstall)
 - [7. Validation log](#7-validation-log)
@@ -32,11 +40,11 @@
 brew install pipx && pipx ensurepath          # macOS
 # or:  python3 -m pip install --user pipx && pipx ensurepath  (Linux)
 
-# 2. Install the main CLI
-pipx install git+https://github.com/qxbyte/codemap.git
+# 2. Install the main CLI from PyPI
+pipx install codemap-core
 
 # 3. Inject any language plugins you need
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+pipx inject codemap codemap-java
 
 # 4. Use it
 cd ~/your-project
@@ -73,8 +81,8 @@ python3 --version
 
 ## 2. Install the main CLI
 
-CodeMap is not yet on PyPI; install directly from the GitHub repository.
-Pick one of three paths:
+CodeMap is published on PyPI as `codemap-core`. Pick one of three
+install paths:
 
 ### 2.1 With `pipx` (recommended)
 
@@ -82,13 +90,7 @@ Pick one of three paths:
 `codemap` command on your `$PATH` — exactly what you want for a CLI.
 
 ```bash
-pipx install git+https://github.com/qxbyte/codemap.git
-```
-
-Pin to a specific commit for a reproducible install:
-
-```bash
-pipx install "git+https://github.com/qxbyte/codemap.git@<commit-sha>"
+pipx install codemap-core
 ```
 
 ### 2.2 With `uv tool`
@@ -96,7 +98,7 @@ pipx install "git+https://github.com/qxbyte/codemap.git@<commit-sha>"
 Same isolation model as `pipx`, but faster:
 
 ```bash
-uv tool install git+https://github.com/qxbyte/codemap.git
+uv tool install codemap-core
 ```
 
 ### 2.3 With plain `pip` (not recommended)
@@ -106,17 +108,58 @@ you fully control:
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install git+https://github.com/qxbyte/codemap.git
+pip install codemap-core
 ```
 
 ### 2.4 Optional extras
 
 ```bash
 # `codemap index --watch` needs watchdog
-pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
+pipx install "codemap-core[watch]"
 
 # Development tooling (pytest, ruff, mypy, import-linter, pytest-benchmark)
-pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[dev]"
+pipx install "codemap-core[dev]"
+```
+
+### 2.5 Pin to an exact version
+
+```bash
+pipx install "codemap-core==0.1.0"
+```
+
+### 2.6 Pre-releases (alpha / beta / rc)
+
+`pipx` skips pre-releases by default. Use `--pip-args="--pre"` to opt
+in:
+
+```bash
+pipx install --pip-args="--pre" codemap-core
+```
+
+### 2.7 Upgrade
+
+```bash
+pipx upgrade codemap                  # injected plugins follow automatically
+uv tool upgrade codemap               # uv equivalent
+pip install --upgrade codemap-core    # plain pip inside a venv
+```
+
+### 2.8 Install from git (track `main`, pin to a commit)
+
+For users who want unreleased changes from `main` or to pin to a
+specific commit before the next PyPI release, the git URL form still
+works:
+
+```bash
+# Track main
+pipx install git+https://github.com/qxbyte/codemap.git
+pip install git+https://github.com/qxbyte/codemap.git
+
+# Pin to a commit
+pipx install "git+https://github.com/qxbyte/codemap.git@<commit-sha>"
+
+# Specific extras
+pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
 ```
 
 ---
@@ -185,26 +228,21 @@ auto-discovered via `entry_points` — no configuration files to edit.
 the main CLI:
 
 ```bash
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-go"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-swift"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-kotlin"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-ruby"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-sql"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-c"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-cpp"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-csharp"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-scala"
+# All 14 languages in a single command
+pipx inject codemap codemap-typescript codemap-java codemap-go \
+                    codemap-rust codemap-swift codemap-kotlin \
+                    codemap-ruby codemap-php codemap-sql \
+                    codemap-bash codemap-c codemap-cpp \
+                    codemap-csharp codemap-scala
+
+# Or one at a time
+pipx inject codemap codemap-typescript
 ```
 
 ### 4.3 With `uv tool inject`
 
 ```bash
-uv tool inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+uv tool inject codemap codemap-java
 ```
 
 ### 4.4 With plain `pip`
@@ -213,6 +251,16 @@ If you installed via `pip` into an active virtualenv, install plugins
 the same way:
 
 ```bash
+pip install codemap-java
+```
+
+### 4.6 From git (track `main`, pin to a commit)
+
+If you need an unreleased plugin from `main` or a specific commit, fall
+back to the subdirectory URL form:
+
+```bash
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
 ```
 

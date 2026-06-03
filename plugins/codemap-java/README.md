@@ -31,7 +31,7 @@ scip-java . . . src/com/example/Greeter.java/Greeter#hello().
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+pip install codemap-java
 ```
 
 After installation, `codemap doctor` lists `java` next to the other

@@ -25,7 +25,7 @@ symbol-producing type.
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
+pip install codemap-php
 ```
 
 ## SymbolID encoding

@@ -19,7 +19,7 @@ declared inside a function is local state, not a script-level symbol.
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
+pip install codemap-bash
 ```
 
 ## SymbolID encoding

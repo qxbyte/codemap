@@ -24,7 +24,7 @@ script-level interface.
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-c"
+pip install codemap-c
 ```
 
 ## File patterns

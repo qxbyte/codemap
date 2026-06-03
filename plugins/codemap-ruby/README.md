@@ -23,7 +23,7 @@ Nested class / module declarations are tracked with a class stack:
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-ruby"
+pip install codemap-ruby
 ```
 
 ## SymbolID encoding
