@@ -11,8 +11,8 @@ mappings, and cross-file relationships without grepping the entire
 project. Indexing is static, fast, and reproducible — no LLM in the
 index path.
 
-**Status**: Alpha. The CLI is usable today; PyPI release is not yet
-published, so install directly from this repository.
+**Status**: 0.1.0 stable. Installable from PyPI as `codemap-core`
+plus 14 `codemap-<lang>` plugins.
 
 > 👉 **In a hurry?** The [`INSTALL.md`](./INSTALL.md) guide is the
 > definitive walkthrough — it covers `pipx` / `uv tool` / `pip`,
@@ -27,8 +27,9 @@ published, so install directly from this repository.
 - [Installation](#installation)
   - [1. Main CLI](#1-main-cli)
   - [2. Optional extras](#2-optional-extras)
-  - [3. TypeScript plugin (subdirectory)](#3-typescript-plugin-subdirectory)
+  - [3. Language plugins](#3-language-plugins)
   - [4. Local clone (development)](#4-local-clone-development)
+  - [4b. Install from git](#4b-install-from-git-track-main-pin-to-a-commit)
   - [5. System requirements](#5-system-requirements)
 - [Verify](#verify)
 - [Commands](#commands)
@@ -63,86 +64,60 @@ published, so install directly from this repository.
 ### 1. Main CLI
 
 ```bash
-# Easiest: install from main branch
-pip install git+https://github.com/qxbyte/codemap.git
-
 # Recommended: pipx provides environment isolation + a system-wide
 # `codemap` command
-pipx install git+https://github.com/qxbyte/codemap.git
+pipx install codemap-core
+
+# Plain pip (preferably into a venv)
+pip install codemap-core
 
 # Or with uv
-uv tool install git+https://github.com/qxbyte/codemap.git
-
-# Pin to a specific commit / tag for reproducible installs
-pip install git+https://github.com/qxbyte/codemap.git@main
-pip install git+https://github.com/qxbyte/codemap.git@2c3ed45
+uv tool install codemap-core
 ```
 
 ### 2. Optional extras
 
 ```bash
 # `--watch` mode needs watchdog
-pip install "codemap[watch] @ git+https://github.com/qxbyte/codemap.git"
+pip install "codemap-core[watch]"
+pipx install "codemap-core[watch]"
 
 # Development tools (tests, lint, mypy, import-linter, benchmarks)
-pip install "codemap[dev] @ git+https://github.com/qxbyte/codemap.git"
-
-# pipx form (note the `#egg=` syntax)
-pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
+pip install "codemap-core[dev]"
 ```
 
-### 3. Language plugins (subdirectory installs)
+### 3. Language plugins
 
-Each non-Python language indexer is shipped as an **independent PyPI
-package** under `plugins/`. GitHub installs of a subdirectory use the
-`subdirectory=...` URL fragment:
+Each non-Python language indexer ships as an **independent PyPI
+distribution**. To add a language to a `pipx`-installed `codemap`, use
+`pipx inject` so the plugin lands in the same isolated venv as the
+main CLI:
 
 ```bash
-# TypeScript / TSX
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript"
-
-# Java
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
-
-# Go
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-go"
-
-# Rust
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
-
-# Swift
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-swift"
-
-# Kotlin
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-kotlin"
-
-# Ruby
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-ruby"
-
-# PHP
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
-
-# SQL (DDL)
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-sql"
-
-# Bash / shell scripts
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
-
-# C
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-c"
-
-# C++
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-cpp"
-
-# C#
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-csharp"
-
-# Scala
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-scala"
+pipx inject codemap codemap-typescript codemap-java codemap-go \
+                    codemap-rust codemap-swift codemap-kotlin \
+                    codemap-ruby codemap-php codemap-sql \
+                    codemap-bash codemap-c codemap-cpp \
+                    codemap-csharp codemap-scala
 ```
 
-Each plugin declares `codemap` as a dependency, so pip will pull the
-main package if you don't already have it. After installation, `codemap
+Plain pip (when `codemap-core` is installed via `pip`, not `pipx`):
+
+```bash
+pip install codemap-typescript codemap-java codemap-go codemap-rust \
+            codemap-swift codemap-kotlin codemap-ruby codemap-php \
+            codemap-sql codemap-bash codemap-c codemap-cpp \
+            codemap-csharp codemap-scala
+```
+
+Or one at a time when you only need a single language:
+
+```bash
+pipx inject codemap codemap-typescript   # or pip install codemap-typescript
+```
+
+Each plugin declares `codemap-core` as a dependency, so pip will pull
+the engine if you don't already have it. After installation, `codemap
 doctor` lists every installed plugin alongside the built-in indexers on
 identical terms — see [Writing a plugin](#writing-a-plugin) for the
 design.
@@ -171,6 +146,23 @@ pip install -e plugins/codemap-c
 pip install -e plugins/codemap-cpp
 pip install -e plugins/codemap-csharp
 pip install -e plugins/codemap-scala
+```
+
+### 4b. Install from git (track `main`, pin to a commit)
+
+For users who want unreleased changes from `main` or to pin to a
+specific commit, the git URL form still works:
+
+```bash
+# Track main
+pip install git+https://github.com/qxbyte/codemap.git
+pipx install git+https://github.com/qxbyte/codemap.git
+
+# Pin to a commit
+pip install git+https://github.com/qxbyte/codemap.git@2c3ed45
+
+# A specific language plugin from a subdirectory
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript"
 ```
 
 ### 5. System requirements

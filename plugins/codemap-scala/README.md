@@ -22,7 +22,7 @@ Backed by `tree-sitter-scala`:
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-scala"
+pip install codemap-scala
 ```
 
 ## File patterns

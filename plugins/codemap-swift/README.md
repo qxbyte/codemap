@@ -21,7 +21,7 @@ Backed by `tree-sitter-swift`:
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-swift"
+pip install codemap-swift
 ```
 
 ## SymbolID encoding

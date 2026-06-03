@@ -8,6 +8,63 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-06-03
+
+First stable PyPI release. The CLI is now installable via:
+
+```bash
+pipx install codemap-core
+# or
+pip install codemap-core
+```
+
+…plus language adapters as separate distributions (`codemap-bash`,
+`codemap-c`, `codemap-cpp`, `codemap-csharp`, `codemap-go`,
+`codemap-java`, `codemap-kotlin`, `codemap-php`, `codemap-ruby`,
+`codemap-rust`, `codemap-scala`, `codemap-sql`, `codemap-swift`,
+`codemap-typescript`). `pipx inject codemap codemap-<lang>` is the
+canonical pattern for adding language support to a `pipx`-installed
+CLI.
+
+### Changed — `README.md` / `INSTALL.md` switch to PyPI-first installation
+
+Both `README.md` / `README.zh-CN.md` / `INSTALL.md` / `INSTALL.zh-CN.md`
+and the 14 plugin READMEs now show `pip install codemap-core` and
+`pip install codemap-<lang>` as the primary install path. The
+`git+https://github.com/qxbyte/codemap.git[#subdirectory=…]` form is
+retained as a fallback for users who want to track `main` or pin to a
+specific commit before the next PyPI release.
+
+### Fixed — `publish.yml`: `uv venv` does not bootstrap `pip` (2026-06-01)
+
+The publish workflow's "Create isolated build venv" step was calling
+`<venv>/bin/pip`, but `uv venv` (unlike `python -m venv`) intentionally
+does not install `pip` into the venv. All 15 publish jobs failed at
+exit 127 ("`pip: command not found`") under tag `v0.1.0a2`.
+
+Fix: use `uv pip install --python <venv>/bin/python build twine`, the
+same shape as the `bench.yml` fix in PR #3. Validated under tag
+`v0.1.0a3` — 16/16 jobs green on TestPyPI.
+
+### Added — `bench.yml`: PR-vs-main median delta comparison (2026-05-31)
+
+The benchmark CI workflow now checks out `main` into a separate
+`git worktree`, runs the `pytest-benchmark` suite against both PR HEAD
+and main, then compares per-test median deltas. Threshold: ≥20%
+regression on any benchmark fails the job; ≤−20% improvement and
+in-band changes pass with `warn` / `ok` flags surfaced in the job
+summary.
+
+### Documented — PyPI rate-limit findings
+
+Empirically, PyPI applies a per-account new-project-creation throttle:
+roughly **4 new project registrations per 24-hour sliding window**.
+File uploads (`.whl` / `.tar.gz`) to already-existing projects use a
+separate, much looser bucket. The 0.1.0 release was paced across two
+days to stay within this limit; subsequent maintenance releases are
+unaffected because the projects already exist. The corresponding
+support ticket is `pypi/support#10881`.
+
 ## [0.1.0a1] — 2026-05-30
 
 First PyPI release rehearsal. Pre-release artifacts are published to

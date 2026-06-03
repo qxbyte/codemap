@@ -2,10 +2,14 @@
 
 [English](./INSTALL.md) · **简体中文**
 
-> 本文档里所有命令都在一台全新的 Python 3.12 虚拟环境中端到端跑过,
-> 时间是 2026-05-30,目标版本是
-> [`qxbyte/codemap@main`](https://github.com/qxbyte/codemap)。
-> 文末 [验证日志](#7-验证日志) 是那次跑动的逐字记录。
+> **0.1.0**(2026-06-03)起,CodeMap 已发布到 PyPI,主包名
+> `codemap-core`,另含 14 个 `codemap-<lang>` 语言插件。下面命令默认
+> 以 PyPI 为安装来源;[从 git 安装](#28-从-git-安装跟随-main--锁定-commit)
+> 一节保留旧的 `git+https://…` 方式,适合需要跟 `main` 或锁定
+> commit 的用户。文末 [验证日志](#7-验证日志) 是 2026-05-30 那次
+> [`qxbyte/codemap@c4cd436`](https://github.com/qxbyte/codemap/commit/c4cd436)
+> pre-release 验证的逐字记录,命令与数字均真实,但里面用的是旧的
+> `git+https://…` 安装 URL。
 
 ---
 
@@ -14,8 +18,10 @@
 - [TL;DR](#tldr)
 - [1. 系统要求](#1-系统要求)
 - [2. 安装主 CLI](#2-安装主-cli)
+  - [2.8 从 git 安装](#28-从-git-安装跟随-main--锁定-commit)
 - [3. 验证](#3-验证)
 - [4. 安装语言插件](#4-安装语言插件)
+  - [4.6 从 git 安装](#46-从-git-安装跟随-main--锁定-commit)
 - [5. 第一次使用](#5-第一次使用)
 - [6. 升级与卸载](#6-升级与卸载)
 - [7. 验证日志](#7-验证日志)
@@ -31,11 +37,11 @@
 brew install pipx && pipx ensurepath          # macOS
 # 或 Linux:  python3 -m pip install --user pipx && pipx ensurepath
 
-# 2. 装主 CLI
-pipx install git+https://github.com/qxbyte/codemap.git
+# 2. 装主 CLI(从 PyPI)
+pipx install codemap-core
 
 # 3. 按需注入语言插件
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+pipx inject codemap codemap-java
 
 # 4. 开干
 cd ~/your-project
@@ -71,7 +77,7 @@ python3 --version
 
 ## 2. 安装主 CLI
 
-CodeMap 还没发布到 PyPI,直接从 GitHub 装。三种方式任选:
+CodeMap 在 PyPI 上的发行名是 `codemap-core`。三种装法任选:
 
 ### 2.1 用 `pipx`(推荐)
 
@@ -79,13 +85,7 @@ CodeMap 还没发布到 PyPI,直接从 GitHub 装。三种方式任选:
 —— 这正是 CLI 工具该有的形态。
 
 ```bash
-pipx install git+https://github.com/qxbyte/codemap.git
-```
-
-钉某个 commit 保证可复现:
-
-```bash
-pipx install "git+https://github.com/qxbyte/codemap.git@<commit-sha>"
+pipx install codemap-core
 ```
 
 ### 2.2 用 `uv tool`
@@ -93,7 +93,7 @@ pipx install "git+https://github.com/qxbyte/codemap.git@<commit-sha>"
 隔离模型同 pipx,但更快:
 
 ```bash
-uv tool install git+https://github.com/qxbyte/codemap.git
+uv tool install codemap-core
 ```
 
 ### 2.3 用普通 `pip`(不推荐)
@@ -102,17 +102,56 @@ uv tool install git+https://github.com/qxbyte/codemap.git
 
 ```bash
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install git+https://github.com/qxbyte/codemap.git
+pip install codemap-core
 ```
 
 ### 2.4 可选 extras
 
 ```bash
 # `codemap index --watch` 需要 watchdog
-pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
+pipx install "codemap-core[watch]"
 
 # 开发工具集(pytest、ruff、mypy、import-linter、pytest-benchmark)
-pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[dev]"
+pipx install "codemap-core[dev]"
+```
+
+### 2.5 锁定到具体版本
+
+```bash
+pipx install "codemap-core==0.1.0"
+```
+
+### 2.6 预发布版本(alpha / beta / rc)
+
+`pipx` 默认跳过预发布,加 `--pip-args="--pre"` 才会装:
+
+```bash
+pipx install --pip-args="--pre" codemap-core
+```
+
+### 2.7 升级
+
+```bash
+pipx upgrade codemap                  # 主包升级,已注入的插件自动跟随
+uv tool upgrade codemap               # uv 等价
+pip install --upgrade codemap-core    # venv 内的 pip
+```
+
+### 2.8 从 git 安装(跟随 main / 锁定 commit)
+
+如果想用 `main` 上未发布的改动,或者要锁到具体 commit,git URL
+形式仍可用:
+
+```bash
+# 跟随 main
+pipx install git+https://github.com/qxbyte/codemap.git
+pip install git+https://github.com/qxbyte/codemap.git
+
+# 锁定 commit
+pipx install "git+https://github.com/qxbyte/codemap.git@<commit-sha>"
+
+# 带 extras
+pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
 ```
 
 ---
@@ -178,26 +217,21 @@ codemap doctor
 `pipx inject` 把插件装进主 CLI 所在的隔离环境:
 
 ```bash
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-go"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-swift"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-kotlin"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-ruby"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-sql"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-c"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-cpp"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-csharp"
-pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-scala"
+# 14 个语言一次性装齐
+pipx inject codemap codemap-typescript codemap-java codemap-go \
+                    codemap-rust codemap-swift codemap-kotlin \
+                    codemap-ruby codemap-php codemap-sql \
+                    codemap-bash codemap-c codemap-cpp \
+                    codemap-csharp codemap-scala
+
+# 或单个装
+pipx inject codemap codemap-typescript
 ```
 
 ### 4.3 用 `uv tool inject`
 
 ```bash
-uv tool inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
+uv tool inject codemap codemap-java
 ```
 
 ### 4.4 用普通 `pip`
@@ -205,6 +239,15 @@ uv tool inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=p
 如果你是 `pip` 装在激活的 virtualenv 里,插件也用同样方式:
 
 ```bash
+pip install codemap-java
+```
+
+### 4.6 从 git 安装(跟随 main / 锁定 commit)
+
+要用 `main` 上未发布的插件或锁定 commit,用子目录 URL:
+
+```bash
+pipx inject codemap "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
 pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
 ```
 

@@ -34,7 +34,7 @@ scip-sql . . . db/migrations/0001_init.sql/idx_users_email.
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-sql"
+pip install codemap-sql
 ```
 
 ## Limits

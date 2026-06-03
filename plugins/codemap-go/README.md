@@ -35,7 +35,7 @@ scip-go . . . pkg/user/user.go/User#Login().
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-go"
+pip install codemap-go
 ```
 
 After install, `codemap doctor` lists `go` alongside the other indexers

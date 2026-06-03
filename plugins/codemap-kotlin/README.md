@@ -22,7 +22,7 @@ Backed by `tree-sitter-kotlin`:
 ## Install
 
 ```bash
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-kotlin"
+pip install codemap-kotlin
 ```
 
 ## SymbolID encoding

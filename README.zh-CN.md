@@ -9,7 +9,8 @@ CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI A
 路由映射与跨文件关联。索引过程是静态的、快速的、可复现的 —— **索引
 路径上不依赖任何 LLM**。
 
-**状态**:Alpha。CLI 当前可用;尚未发布到 PyPI,请直接从本仓库安装。
+**状态**:0.1.0 稳定版。已发布到 PyPI,主包名 `codemap-core`,
+另含 14 个 `codemap-<lang>` 语言插件。
 
 > 👉 **想直接动手?** [`INSTALL.zh-CN.md`](./INSTALL.zh-CN.md) 是完整
 > 安装指南 —— 覆盖 `pipx` / `uv tool` / `pip` 三种装法、语言插件注入、
@@ -23,8 +24,9 @@ CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI A
 - [安装](#安装)
   - [1. 主 CLI](#1-主-cli)
   - [2. 可选 extras](#2-可选-extras)
-  - [3. TypeScript 插件(子目录)](#3-typescript-插件子目录)
+  - [3. 语言插件](#3-语言插件)
   - [4. 本地克隆(开发模式)](#4-本地克隆开发模式)
+  - [4b. 从 git 安装(跟 main / 锁 commit)](#4b-从-git-安装跟-main--锁-commit)
   - [5. 系统要求](#5-系统要求)
 - [验证](#验证)
 - [命令](#命令)
@@ -56,83 +58,56 @@ CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI A
 ### 1. 主 CLI
 
 ```bash
-# 最简单:直接从 main 分支安装
-pip install git+https://github.com/qxbyte/codemap.git
-
 # 推荐:pipx 提供环境隔离,装好后系统级有 `codemap` 命令
-pipx install git+https://github.com/qxbyte/codemap.git
+pipx install codemap-core
 
-# 或者用 uv
-uv tool install git+https://github.com/qxbyte/codemap.git
+# 普通 pip(建议装到 venv 里)
+pip install codemap-core
 
-# 锁定到某个 commit / tag(可复现安装)
-pip install git+https://github.com/qxbyte/codemap.git@main
-pip install git+https://github.com/qxbyte/codemap.git@2c3ed45
+# 或用 uv
+uv tool install codemap-core
 ```
 
 ### 2. 可选 extras
 
 ```bash
 # `--watch` 模式需要 watchdog
-pip install "codemap[watch] @ git+https://github.com/qxbyte/codemap.git"
+pip install "codemap-core[watch]"
+pipx install "codemap-core[watch]"
 
 # 开发工具(pytest、lint、mypy、import-linter、benchmark 等)
-pip install "codemap[dev] @ git+https://github.com/qxbyte/codemap.git"
-
-# pipx 等价写法(注意 `#egg=` 语法)
-pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
+pip install "codemap-core[dev]"
 ```
 
-### 3. 语言插件(子目录安装)
+### 3. 语言插件
 
-每个非 Python 的语言 indexer 都作为**独立 PyPI 包**放在 `plugins/`
-目录下。从 GitHub 安装子目录用 `subdirectory=...` URL 片段:
+每个非 Python 的语言 indexer 都作为**独立 PyPI 发行包**发布。
+若主包是用 `pipx` 装的,用 `pipx inject` 把插件装进同一个隔离 venv:
 
 ```bash
-# TypeScript / TSX
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript"
-
-# Java
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-java"
-
-# Go
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-go"
-
-# Rust
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-rust"
-
-# Swift
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-swift"
-
-# Kotlin
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-kotlin"
-
-# Ruby
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-ruby"
-
-# PHP
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-php"
-
-# SQL(仅 DDL)
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-sql"
-
-# Bash / shell 脚本
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-bash"
-
-# C
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-c"
-
-# C++
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-cpp"
-
-# C#
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-csharp"
-
-# Scala
-pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-scala"
+pipx inject codemap codemap-typescript codemap-java codemap-go \
+                    codemap-rust codemap-swift codemap-kotlin \
+                    codemap-ruby codemap-php codemap-sql \
+                    codemap-bash codemap-c codemap-cpp \
+                    codemap-csharp codemap-scala
 ```
 
-每个插件都声明依赖 `codemap`,所以如果没装主包,pip 会一起拉取。
+若主包是用 `pip` 装的:
+
+```bash
+pip install codemap-typescript codemap-java codemap-go codemap-rust \
+            codemap-swift codemap-kotlin codemap-ruby codemap-php \
+            codemap-sql codemap-bash codemap-c codemap-cpp \
+            codemap-csharp codemap-scala
+```
+
+只装单个插件也可以:
+
+```bash
+pipx inject codemap codemap-typescript   # 或 pip install codemap-typescript
+```
+
+每个插件都声明依赖 `codemap-core`,所以如果没装主包,pip 会一起拉取。
 装好后 `codemap doctor` 会列出所有已安装的插件,与内置 indexer
 **地位完全一致** —— 详见[写插件](#写插件)。
 
@@ -160,6 +135,23 @@ pip install -e plugins/codemap-c
 pip install -e plugins/codemap-cpp
 pip install -e plugins/codemap-csharp
 pip install -e plugins/codemap-scala
+```
+
+### 4b. 从 git 安装(跟 main / 锁 commit)
+
+如果想用 `main` 上未发布的改动、或锁定到具体 commit,git URL 形式
+仍然可用:
+
+```bash
+# 跟随 main
+pip install git+https://github.com/qxbyte/codemap.git
+pipx install git+https://github.com/qxbyte/codemap.git
+
+# 锁定到具体 commit
+pip install git+https://github.com/qxbyte/codemap.git@2c3ed45
+
+# 单独装某个子目录里的语言插件
+pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/codemap-typescript"
 ```
 
 ### 5. 系统要求
