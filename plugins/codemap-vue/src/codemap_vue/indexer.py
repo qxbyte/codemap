@@ -98,10 +98,12 @@ class VueIndexer:
                     Diagnostic(
                         severity="warning",
                         file=ctx.relative_path,
-                        range=Range(start_line=block.content_start_line, end_line=block.content_start_line),
+                        range=Range(
+                            start_line=block.content_start_line, end_line=block.content_start_line
+                        ),
                         code="VUE003",
                         message=(
-                            f"<script lang=\"{block.lang}\"> requires tree-sitter-typescript; "
+                            f'<script lang="{block.lang}"> requires tree-sitter-typescript; '
                             f"install with: pip install codemap-vue[typescript]"
                         ),
                         producer=self.name,
@@ -116,7 +118,9 @@ class VueIndexer:
                     Diagnostic(
                         severity="warning",
                         file=ctx.relative_path,
-                        range=Range(start_line=block.content_start_line, end_line=block.content_start_line),
+                        range=Range(
+                            start_line=block.content_start_line, end_line=block.content_start_line
+                        ),
                         code="VUE001",
                         message="tree-sitter reported parse errors inside <script>; symbols may be incomplete",
                         producer=self.name,

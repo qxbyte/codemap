@@ -106,8 +106,9 @@ def _emit_page_symbol(
     descriptors are reused when generating IDs for member symbols.
     """
     page_name = _page_type_name(relative_path)
-    descriptors = list(_path_namespaces(relative_path)) + [
-        Descriptor(name=page_name, kind=DescriptorKind.TYPE)
+    descriptors = [
+        *_path_namespaces(relative_path),
+        Descriptor(name=page_name, kind=DescriptorKind.TYPE),
     ]
     page_id = SymbolID(scheme=SCHEME, descriptors=tuple(descriptors))
 
@@ -115,11 +116,10 @@ def _emit_page_symbol(
         "jsp_imports": [{"fqcn": i.fqcn, "line": i.line} for i in ext.imports],
         "jsp_includes": [{"path": i.path, "line": i.line} for i in ext.includes],
     }
-    client_calls: list[dict[str, object]] = []
-    for fa in ext.form_actions:
-        client_calls.append({"method": fa.method, "url": fa.url, "line": fa.line})
-    for link in ext.links:
-        client_calls.append({"method": "GET", "url": link.url, "line": link.line})
+    client_calls: list[dict[str, object]] = [
+        {"method": fa.method, "url": fa.url, "line": fa.line} for fa in ext.form_actions
+    ]
+    client_calls.extend({"method": "GET", "url": link.url, "line": link.line} for link in ext.links)
     if client_calls:
         extra[_JSP_HTTP_CLIENT_EXTRA_KEY] = client_calls
 

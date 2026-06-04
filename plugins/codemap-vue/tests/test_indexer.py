@@ -47,10 +47,7 @@ def test_extract_script_blocks_typescript_lang() -> None:
 
 
 def test_extract_script_blocks_setup_and_normal() -> None:
-    src = (
-        b'<script>export default {};</script>\n'
-        b'<script setup lang="ts">const n = 1;</script>'
-    )
+    src = b'<script>export default {};</script>\n<script setup lang="ts">const n = 1;</script>'
     blocks = extract_script_blocks(src)
     assert len(blocks) == 2
     assert [b.lang for b in blocks] == ["js", "ts"]

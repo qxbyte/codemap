@@ -32,9 +32,7 @@ def _index(source: str, *, path: str = "src/pages/UserList.jsp") -> IndexResult:
 
 
 def test_extract_page_imports() -> None:
-    ext = extract(
-        b'<%@ page contentType="text/html" import="java.util.List, java.util.Map" %>'
-    )
+    ext = extract(b'<%@ page contentType="text/html" import="java.util.List, java.util.Map" %>')
     fqcns = [i.fqcn for i in ext.imports]
     assert fqcns == ["java.util.List", "java.util.Map"]
 
@@ -58,7 +56,7 @@ def test_extract_form_action_default_method_is_get() -> None:
 def test_extract_links() -> None:
     ext = extract(b'<a href="/admin">A</a> <a href="#section">B</a>')
     # The anchor `#section` link is intentionally skipped.
-    assert [l.url for l in ext.links] == ["/admin"]
+    assert [link.url for link in ext.links] == ["/admin"]
 
 
 def test_extract_scriptlets_vs_declarations() -> None:
@@ -102,13 +100,12 @@ def test_page_symbol_is_class_with_full_range() -> None:
     )
     page = next(s for s in r.symbols if s.kind == "class")
     assert "UserList" in str(page.id)
-    assert page.range is not None and page.range.start_line == 1
+    assert page.range is not None
+    assert page.range.start_line == 1
 
 
 def test_page_symbol_records_imports_in_extra() -> None:
-    r = _index(
-        '<%@ page import="java.util.List, com.example.Foo" %>'
-    )
+    r = _index('<%@ page import="java.util.List, com.example.Foo" %>')
     page = next(s for s in r.symbols if s.kind == "class")
     fqcns = {i["fqcn"] for i in page.extra["jsp_imports"]}
     assert fqcns == {"java.util.List", "com.example.Foo"}
@@ -153,7 +150,7 @@ def test_declaration_block_method_indexed() -> None:
 
 
 def test_declaration_block_field_indexed_as_variable() -> None:
-    r = _index('<%! private int counter = 0; %>')
+    r = _index("<%! private int counter = 0; %>")
     var = next(s for s in r.symbols if s.kind == "variable")
     assert "counter" in str(var.id)
 
@@ -169,8 +166,8 @@ def test_declaration_block_nested_class_indexed() -> None:
         """
     )
     kinds = sorted(s.kind for s in r.symbols)
-    assert "class" in kinds       # page + nested
-    assert "method" in kinds      # compute()
+    assert "class" in kinds  # page + nested
+    assert "method" in kinds  # compute()
 
 
 # ---------------------------------------------------------------------------

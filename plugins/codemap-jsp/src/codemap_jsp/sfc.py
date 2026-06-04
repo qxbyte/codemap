@@ -144,9 +144,11 @@ def _extract_imports(source: bytes) -> list[JspImport]:
         body = m.group("body").decode("utf-8", errors="replace")
         for attr_value in _attr_values(body, "import"):
             # `import="java.util.List, java.util.Map"` → 2 FQCNs
-            for fqcn in (s.strip() for s in attr_value.split(",")):
-                if fqcn:
-                    out.append(JspImport(fqcn=fqcn, line=_line_of(source, m.start())))
+            out.extend(
+                JspImport(fqcn=fqcn, line=_line_of(source, m.start()))
+                for fqcn in (s.strip() for s in attr_value.split(","))
+                if fqcn
+            )
     return out
 
 
@@ -157,9 +159,11 @@ def _extract_includes(source: bytes) -> list[JspInclude]:
         if name != "include":
             continue
         body = m.group("body").decode("utf-8", errors="replace")
-        for attr_value in _attr_values(body, "file"):
-            if attr_value:
-                out.append(JspInclude(path=attr_value, line=_line_of(source, m.start())))
+        out.extend(
+            JspInclude(path=attr_value, line=_line_of(source, m.start()))
+            for attr_value in _attr_values(body, "file")
+            if attr_value
+        )
     return out
 
 
