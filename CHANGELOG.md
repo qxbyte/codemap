@@ -8,6 +8,45 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+### Added — Three new language plugins (`codemap-javascript`, `codemap-vue`, `codemap-jsp`)
+
+Plugin family grows 15 → 18. Each ships as an independent PyPI
+distribution at `0.2.0a1`.
+
+* **`codemap-javascript`** — covers `*.js` / `*.jsx` / `*.mjs` /
+  `*.cjs` via `tree-sitter-javascript`. Symbol coverage mirrors
+  `codemap-typescript` (top-level functions, classes with methods,
+  module-level `const` / `let` / `var`). Sibling of
+  `codemap-typescript` — install either or both depending on the code
+  base.
+
+* **`codemap-vue`** — covers `*.vue` Single File Components. Since
+  `tree-sitter-vue` is not on PyPI, the plugin uses a permissive
+  regex-driven SFC scanner (`codemap_vue.sfc.extract_script_blocks`)
+  to locate every top-level `<script>` block and read its `lang=`
+  attribute, then dispatches the inner bytes to
+  `tree-sitter-javascript` (always required) or
+  `tree-sitter-typescript` (optional `[typescript]` extra, only
+  required when a block declares `lang="ts"` / `lang="tsx"`).
+  Symbol line numbers are translated back to the original `.vue`
+  coordinate space so `codemap get` jumps to the right line even
+  when `<script>` follows a long `<template>`.
+
+* **`codemap-jsp`** — covers `*.jsp` / `*.jspx` / `*.tag` / `*.tagx`
+  for legacy Java web projects. Scans top-level constructs via regex
+  (`codemap_jsp.sfc.extract`) — page imports, includes, declaration
+  blocks (`<%! ... %>`), scriptlets, `<form action="...">`, and
+  `<a href="...">` — then parses each declaration block as a Java
+  member context using a synthetic `class _S { … }` wrapper so
+  `tree-sitter-java` emits `field_declaration` / `method_declaration`
+  / nested `class_declaration` rather than `local_variable_declaration`.
+  Form actions and links are surfaced as `extra.http_client_calls` on
+  the page-level pseudo-class symbol, ready to be linked to server
+  controllers by the `http_route` bridge — the standard JSP →
+  Controller navigation chain.
+
+`codemap doctor` now lists **18 indexers** (4 built-in + 14 plugins).
+
 ## [0.1.0] — 2026-06-03
 
 First stable PyPI release. The CLI is now installable via:
