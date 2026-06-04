@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codemap-vue"
+version = "0.2.0a1"
+description = "Vue SFC (.vue) indexer plugin for CodeMap (https://github.com/qxbyte/codemap)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "CodeMap Contributors" }]
+keywords = ["codemap", "vue", "sfc", "indexer", "tree-sitter"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: JavaScript",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development",
+]
+# tree-sitter-vue is not on PyPI. The plugin extracts the <script> block
+# via SFC top-level parsing, then dispatches to tree-sitter-javascript
+# (always required) and tree-sitter-typescript (optional, only when the
+# block declares lang="ts" / lang="tsx") for inner code.
+dependencies = [
+    "codemap-core>=0.1.0,<0.2",
+    "tree-sitter>=0.25",
+    "tree-sitter-javascript>=0.23",
+]
+
+[project.optional-dependencies]
+typescript = ["tree-sitter-typescript>=0.23"]
+dev = ["pytest>=8.0", "tree-sitter-typescript>=0.23"]
+
+[project.entry-points."codemap.indexers"]
+vue = "codemap_vue:VueIndexer"
+
+[project.urls]
+Homepage = "https://github.com/qxbyte/codemap"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codemap_vue"]
