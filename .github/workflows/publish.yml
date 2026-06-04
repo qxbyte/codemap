@@ -82,6 +82,9 @@ jobs:
           - { name: codemap-cpp,        dir: "plugins/codemap-cpp" }
           - { name: codemap-csharp,     dir: "plugins/codemap-csharp" }
           - { name: codemap-scala,      dir: "plugins/codemap-scala" }
+          - { name: codemap-javascript, dir: "plugins/codemap-javascript" }
+          - { name: codemap-vue,        dir: "plugins/codemap-vue" }
+          - { name: codemap-jsp,        dir: "plugins/codemap-jsp" }
     steps:
       - uses: actions/checkout@v4
 

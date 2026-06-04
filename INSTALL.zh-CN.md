@@ -217,8 +217,9 @@ codemap doctor
 `pipx inject` 把插件装进主 CLI 所在的隔离环境:
 
 ```bash
-# 14 个语言一次性装齐
-pipx inject codemap codemap-typescript codemap-java codemap-go \
+# 17 个语言一次性装齐
+pipx inject codemap codemap-typescript codemap-javascript codemap-vue \
+                    codemap-java codemap-jsp codemap-go \
                     codemap-rust codemap-swift codemap-kotlin \
                     codemap-ruby codemap-php codemap-sql \
                     codemap-bash codemap-c codemap-cpp \

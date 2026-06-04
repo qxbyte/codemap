@@ -11,8 +11,8 @@ mappings, and cross-file relationships without grepping the entire
 project. Indexing is static, fast, and reproducible — no LLM in the
 index path.
 
-**Status**: 0.1.0 stable. Installable from PyPI as `codemap-core`
-plus 14 `codemap-<lang>` plugins.
+**Status**: 0.2.0 stable. Installable from PyPI as `codemap-core`
+plus 17 `codemap-<lang>` plugins.
 
 > 👉 **In a hurry?** The [`INSTALL.md`](./INSTALL.md) guide is the
 > definitive walkthrough — it covers `pipx` / `uv tool` / `pip`,
@@ -94,7 +94,9 @@ distribution**. To add a language to a `pipx`-installed `codemap`, use
 main CLI:
 
 ```bash
-pipx inject codemap codemap-typescript codemap-java codemap-go \
+# All 17 languages in one shot
+pipx inject codemap codemap-typescript codemap-javascript codemap-vue \
+                    codemap-java codemap-jsp codemap-go \
                     codemap-rust codemap-swift codemap-kotlin \
                     codemap-ruby codemap-php codemap-sql \
                     codemap-bash codemap-c codemap-cpp \
@@ -104,7 +106,8 @@ pipx inject codemap codemap-typescript codemap-java codemap-go \
 Plain pip (when `codemap-core` is installed via `pip`, not `pipx`):
 
 ```bash
-pip install codemap-typescript codemap-java codemap-go codemap-rust \
+pip install codemap-typescript codemap-javascript codemap-vue \
+            codemap-java codemap-jsp codemap-go codemap-rust \
             codemap-swift codemap-kotlin codemap-ruby codemap-php \
             codemap-sql codemap-bash codemap-c codemap-cpp \
             codemap-csharp codemap-scala

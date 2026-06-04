@@ -228,8 +228,9 @@ auto-discovered via `entry_points` — no configuration files to edit.
 the main CLI:
 
 ```bash
-# All 14 languages in a single command
-pipx inject codemap codemap-typescript codemap-java codemap-go \
+# All 17 languages in a single command
+pipx inject codemap codemap-typescript codemap-javascript codemap-vue \
+                    codemap-java codemap-jsp codemap-go \
                     codemap-rust codemap-swift codemap-kotlin \
                     codemap-ruby codemap-php codemap-sql \
                     codemap-bash codemap-c codemap-cpp \
