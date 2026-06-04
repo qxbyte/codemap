@@ -9,8 +9,8 @@ CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI A
 路由映射与跨文件关联。索引过程是静态的、快速的、可复现的 —— **索引
 路径上不依赖任何 LLM**。
 
-**状态**:0.1.0 稳定版。已发布到 PyPI,主包名 `codemap-core`,
-另含 14 个 `codemap-<lang>` 语言插件。
+**状态**:0.2.0 稳定版。已发布到 PyPI,主包名 `codemap-core`,
+另含 17 个 `codemap-<lang>` 语言插件。
 
 > 👉 **想直接动手?** [`INSTALL.zh-CN.md`](./INSTALL.zh-CN.md) 是完整
 > 安装指南 —— 覆盖 `pipx` / `uv tool` / `pip` 三种装法、语言插件注入、
@@ -85,7 +85,9 @@ pip install "codemap-core[dev]"
 若主包是用 `pipx` 装的,用 `pipx inject` 把插件装进同一个隔离 venv:
 
 ```bash
-pipx inject codemap codemap-typescript codemap-java codemap-go \
+# 17 个语言一次性装齐
+pipx inject codemap codemap-typescript codemap-javascript codemap-vue \
+                    codemap-java codemap-jsp codemap-go \
                     codemap-rust codemap-swift codemap-kotlin \
                     codemap-ruby codemap-php codemap-sql \
                     codemap-bash codemap-c codemap-cpp \
@@ -95,7 +97,8 @@ pipx inject codemap codemap-typescript codemap-java codemap-go \
 若主包是用 `pip` 装的:
 
 ```bash
-pip install codemap-typescript codemap-java codemap-go codemap-rust \
+pip install codemap-typescript codemap-javascript codemap-vue \
+            codemap-java codemap-jsp codemap-go codemap-rust \
             codemap-swift codemap-kotlin codemap-ruby codemap-php \
             codemap-sql codemap-bash codemap-c codemap-cpp \
             codemap-csharp codemap-scala

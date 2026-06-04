@@ -8,10 +8,17 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-06-04
+
+Plugin family grows **15 → 18**. All packages bump in lockstep to
+`0.2.0` — the 15 existing distributions get a version-only bump, the
+three new distributions ship at `0.2.0` for the first time. Every
+plugin's `codemap-core` dependency is widened to `>=0.2.0,<0.3` so
+all 17 plugins resolve against the new engine.
+
 ### Added — Three new language plugins (`codemap-javascript`, `codemap-vue`, `codemap-jsp`)
 
-Plugin family grows 15 → 18. Each ships as an independent PyPI
-distribution at `0.2.0a1`.
+Each ships as an independent PyPI distribution.
 
 * **`codemap-javascript`** — covers `*.js` / `*.jsx` / `*.mjs` /
   `*.cjs` via `tree-sitter-javascript`. Symbol coverage mirrors
