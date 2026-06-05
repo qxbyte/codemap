@@ -8,6 +8,19 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-06-05
+
+Lockstep version-only bump across all **18 packages** to keep the
+plugin family in sync. No source changes.
+
+Reason: between `v0.2.0` and now, `codemap-core` shipped a `0.2.1`
+patch (PR #9 — read version from package metadata instead of
+hardcoding) without a coordinated plugin bump, leaving the 17 plugin
+distributions at `0.2.0` and `codemap-core` at `0.2.1`. This release
+re-aligns the family at `0.2.2` so `pipx install codemap-core==0.2.2`
+plus `pipx inject codemap codemap-<lang>==0.2.2` is a clean,
+single-version install for every supported language.
+
 ## [0.2.0] — 2026-06-04
 
 Plugin family grows **15 → 18**. All packages bump in lockstep to
