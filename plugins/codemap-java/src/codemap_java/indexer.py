@@ -5,8 +5,17 @@ declarations. Package declarations are honoured as a namespace prefix
 under the file path. Nested types track a class stack to produce the
 correct ``Cls#Inner#m()`` chain.
 
-The indexer is single-file by design; cross-file `extends` / `implements`
-resolution lives in a future bridge so the indexer surface stays narrow.
+The indexer is single-file by design; cross-file ``extends`` / ``implements``
+and call-graph resolution lives in :class:`codemap.core.bridge.java_calls
+.JavaCallResolverBridge`. To enable that resolver, the indexer attaches three
+metadata keys to ``Symbol.extra`` (ADR-0013):
+
+* top-level type symbols carry ``imports`` (list[str], fully qualified)
+* top-level type symbols carry ``supertypes`` (list of
+  ``{"name": str, "relation": "extends"|"implements"}``)
+* method / constructor symbols carry ``pending_calls`` — a list of raw
+  invocation records ``{"receiver", "name", "arity", "line", "col"}`` for
+  the bridge to FQN-resolve.
 """
 
 from __future__ import annotations
@@ -101,10 +110,16 @@ class _Visitor:
         self.diagnostics: list[Diagnostic] = []
         self._class_stack: list[str] = []
         self._package: str = ""
+        self._file_imports: list[str] = []
 
     def visit(self, node: tree_sitter.Node) -> None:
         if node.type == "package_declaration":
             self._package = _node_text(node.children[1]) if node.child_count > 1 else ""
+            return
+        if node.type == "import_declaration":
+            imp = _parse_import(node)
+            if imp:
+                self._file_imports.append(imp)
             return
         if node.type in _TYPE_DECLS:
             self._visit_type(node)
@@ -128,7 +143,15 @@ class _Visitor:
         if name is None:
             return
         java_kind = node.type.removesuffix("_declaration")
+        is_top_level = not self._class_stack
         sid = self._make_id(name, kind=DescriptorKind.TYPE)
+        extra: dict[str, object] = {}
+        if self._package or java_kind != "class":
+            extra["java_kind"] = java_kind
+            extra["package"] = self._package
+        if is_top_level:
+            extra["imports"] = list(self._file_imports)
+            extra["supertypes"] = _parse_supertypes(node)
         self.symbols.append(
             Symbol(
                 id=sid,
@@ -136,9 +159,7 @@ class _Visitor:
                 language=LANG,
                 file=self.relative_path,
                 range=_node_range(node),
-                extra={"java_kind": java_kind, "package": self._package}
-                if self._package or java_kind != "class"
-                else {},
+                extra=extra,
             )
         )
         body = node.child_by_field_name("body")
@@ -164,6 +185,11 @@ class _Visitor:
             display = name
             sid = self._make_id(name, kind=DescriptorKind.METHOD)
         signature = _method_signature(node, name, is_constructor=is_constructor)
+        body = node.child_by_field_name("body")
+        pending_calls = _collect_invocations(body) if body is not None else []
+        extra: dict[str, object] = {}
+        if pending_calls:
+            extra["pending_calls"] = pending_calls
         self.symbols.append(
             Symbol(
                 id=sid,
@@ -172,6 +198,7 @@ class _Visitor:
                 file=self.relative_path,
                 range=_node_range(node),
                 signature=signature,
+                extra=extra,
             )
         )
 
@@ -252,3 +279,129 @@ def _method_signature(
     return_type = node.child_by_field_name("type")
     rt_text = _node_text(return_type) + " " if return_type is not None else ""
     return f"{rt_text}{name}{params_text}"
+
+
+# ---------------------------------------------------------------------------
+# Metadata extractors for the JavaCallResolverBridge (ADR-0013)
+# ---------------------------------------------------------------------------
+
+
+def _parse_import(node: tree_sitter.Node) -> str:
+    """Return the imported FQN. ``import static x.y.Z.m;`` → ``x.y.Z.m``;
+    ``import java.util.*;`` → ``java.util.*``. Empty string on malformed
+    input (returned to the caller, who drops empties)."""
+    parts: list[str] = []
+    saw_asterisk = False
+    for child in node.children:
+        ttype = child.type
+        if ttype in {"import", "static", ";"}:
+            continue
+        if ttype == "asterisk":
+            saw_asterisk = True
+            continue
+        if ttype in {"identifier", "scoped_identifier"}:
+            parts.append(_node_text(child))
+    if not parts:
+        return ""
+    path = ".".join(parts)
+    return f"{path}.*" if saw_asterisk else path
+
+
+def _parse_supertypes(type_node: tree_sitter.Node) -> list[dict[str, str]]:
+    """Extract ``extends`` / ``implements`` relations off a type declaration.
+
+    Handles ``class X extends A``, ``class X implements I, J``,
+    ``class X extends A implements I``, and ``interface I extends J, K``.
+    Generic type arguments (``Box<String>``) are stripped — bridge resolves
+    by raw name, not parameterized type.
+    """
+    out: list[dict[str, str]] = []
+    for child in type_node.children:
+        ttype = child.type
+        # `class` declarations: superclass / super_interfaces fields.
+        if ttype == "superclass":
+            out.extend({"name": name, "relation": "extends"} for name in _supertype_names(child))
+        elif ttype == "super_interfaces":
+            out.extend(
+                {"name": name, "relation": "implements"} for name in _supertype_names(child)
+            )
+        # `interface` declarations: extends_interfaces.
+        elif ttype == "extends_interfaces":
+            out.extend({"name": name, "relation": "extends"} for name in _supertype_names(child))
+    return out
+
+
+def _supertype_names(container: tree_sitter.Node) -> list[str]:
+    out: list[str] = []
+    for child in container.children:
+        ttype = child.type
+        if ttype in {"type_identifier", "scoped_type_identifier"}:
+            out.append(_node_text(child))
+        elif ttype == "generic_type":
+            # take the head type, drop ``<...>``
+            head = child.child(0)
+            if head is not None and head.type in {
+                "type_identifier",
+                "scoped_type_identifier",
+            }:
+                out.append(_node_text(head))
+        elif ttype == "type_list":
+            out.extend(_supertype_names(child))
+    return out
+
+
+def _collect_invocations(body: tree_sitter.Node) -> list[dict[str, object]]:
+    """Walk ``body`` collecting every ``method_invocation`` node as a raw
+    record. The bridge does FQN resolution; here we only capture the syntactic
+    shape (receiver text, name, arity, location)."""
+    records: list[dict[str, object]] = []
+
+    def walk(node: tree_sitter.Node) -> None:
+        if node.type == "method_invocation":
+            name_node = node.child_by_field_name("name")
+            obj_node = node.child_by_field_name("object")
+            args_node = node.child_by_field_name("arguments")
+            if name_node is not None:
+                receiver = _receiver_text(obj_node)
+                name = _node_text(name_node)
+                arity = _argument_arity(args_node)
+                sr, sc = node.start_point
+                records.append(
+                    {
+                        "receiver": receiver,
+                        "name": name,
+                        "arity": arity,
+                        "line": sr + 1,
+                        "col": sc,
+                    }
+                )
+        for child in node.children:
+            walk(child)
+
+    walk(body)
+    return records
+
+
+def _receiver_text(obj: tree_sitter.Node | None) -> str:
+    """Best-effort textual receiver. Empty for unqualified calls; the inner
+    method's name for chained calls (``foo.bar().baz()`` → ``"bar"`` is the
+    receiver of ``baz``)."""
+    if obj is None:
+        return ""
+    ttype = obj.type
+    if ttype in {"identifier", "scoped_identifier", "this", "super"}:
+        return _node_text(obj)
+    if ttype == "field_access":
+        field = obj.child_by_field_name("field")
+        return _node_text(field) if field is not None else ""
+    if ttype == "method_invocation":
+        inner = obj.child_by_field_name("name")
+        return _node_text(inner) if inner is not None else ""
+    return ""
+
+
+def _argument_arity(args: tree_sitter.Node | None) -> int:
+    if args is None:
+        return 0
+    # named_child_count skips punctuation tokens (`(`, `)`, `,`).
+    return int(args.named_child_count)
