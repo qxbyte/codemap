@@ -29,6 +29,9 @@ dev = ["pytest>=8.0"]
 [project.entry-points."codemap.indexers"]
 java = "codemap_java:JavaIndexer"
 
+[project.entry-points."codemap.bridges"]
+java_calls = "codemap_java.resolver:JavaCallResolverBridge"
+
 [project.urls]
 Homepage = "https://github.com/qxbyte/codemap"
 

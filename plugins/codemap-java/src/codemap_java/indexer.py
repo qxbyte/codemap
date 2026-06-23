@@ -187,7 +187,12 @@ class _Visitor:
         signature = _method_signature(node, name, is_constructor=is_constructor)
         body = node.child_by_field_name("body")
         pending_calls = _collect_invocations(body) if body is not None else []
-        extra: dict[str, object] = {}
+        params = _parse_formal_parameters(node.child_by_field_name("parameters"))
+        extra: dict[str, object] = {"params": params}
+        if not is_constructor:
+            ret = node.child_by_field_name("type")
+            if ret is not None:
+                extra["return_type"] = _strip_generics(_node_text(ret))
         if pending_calls:
             extra["pending_calls"] = pending_calls
         self.symbols.append(
@@ -203,6 +208,8 @@ class _Visitor:
         )
 
     def _visit_field(self, node: tree_sitter.Node) -> None:
+        type_node = node.child_by_field_name("type")
+        type_str = _strip_generics(_node_text(type_node)) if type_node is not None else ""
         for child in node.children:
             if child.type != "variable_declarator":
                 continue
@@ -213,6 +220,9 @@ class _Visitor:
             if not name:
                 continue
             sid = self._make_id(name, kind=DescriptorKind.TERM)
+            extra: dict[str, object] = {}
+            if type_str:
+                extra["type"] = type_str
             self.symbols.append(
                 Symbol(
                     id=sid,
@@ -220,6 +230,7 @@ class _Visitor:
                     language=LANG,
                     file=self.relative_path,
                     range=_node_range(child),
+                    extra=extra,
                 )
             )
 
@@ -405,3 +416,41 @@ def _argument_arity(args: tree_sitter.Node | None) -> int:
         return 0
     # named_child_count skips punctuation tokens (`(`, `)`, `,`).
     return int(args.named_child_count)
+
+
+def _parse_formal_parameters(node: tree_sitter.Node | None) -> list[dict[str, str]]:
+    """Return ``[{"name": str, "type": str}]`` for each formal parameter.
+
+    Generic type arguments are stripped (``List<String>`` → ``List``) so the
+    FQN resolver can match by raw type name.
+    """
+    if node is None:
+        return []
+    out: list[dict[str, str]] = []
+    for child in node.children:
+        if child.type not in {"formal_parameter", "spread_parameter"}:
+            continue
+        name_node = child.child_by_field_name("name")
+        type_node = child.child_by_field_name("type")
+        if name_node is None or type_node is None:
+            # Spread parameters wrap the actual variable_declarator differently.
+            for sub in child.children:
+                if sub.type == "variable_declarator" and name_node is None:
+                    name_node = sub.child_by_field_name("name")
+        if name_node is None or type_node is None:
+            continue
+        out.append(
+            {
+                "name": _node_text(name_node),
+                "type": _strip_generics(_node_text(type_node)),
+            }
+        )
+    return out
+
+
+def _strip_generics(t: str) -> str:
+    """``Box<String, Integer>`` → ``Box``; arrays / primitives untouched."""
+    t = t.strip()
+    if "<" in t:
+        return t.split("<", 1)[0].rstrip()
+    return t
