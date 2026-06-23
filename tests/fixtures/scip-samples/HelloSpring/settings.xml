@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fixture-local Maven settings.
+
+  Used only when building this spike fixture in environments where Maven
+  needs an explicit proxy (e.g. dev machines behind a SOCKS/HTTP proxy
+  on 127.0.0.1:7890). Maven does not read HTTP_PROXY environment vars.
+
+  CI / production builds of codemap-core do NOT depend on this — only the
+  scip-java spike (Plan 0) and the golden-precision test (Plan 4) consume
+  this fixture, and both can override -s if running in a different env.
+
+  Invocation:  mvn -s settings.xml -DskipTests compile
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <proxies>
+    <proxy>
+      <id>local-http-proxy</id>
+      <active>true</active>
+      <protocol>http</protocol>
+      <host>127.0.0.1</host>
+      <port>7890</port>
+    </proxy>
+    <proxy>
+      <id>local-https-proxy</id>
+      <active>true</active>
+      <protocol>https</protocol>
+      <host>127.0.0.1</host>
+      <port>7890</port>
+    </proxy>
+  </proxies>
+</settings>
