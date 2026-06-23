@@ -90,6 +90,7 @@ SymbolKind = Literal[
     "route",
     "component",
     "asset",
+    "table",
     "unknown",
 ]
 
@@ -116,6 +117,8 @@ EdgeKind = Literal[
     "references",
     "routes_to",
     "maps_to",
+    "overrides",
+    "accesses_table",
     "imports",
 ]
 
