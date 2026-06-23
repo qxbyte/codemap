@@ -77,6 +77,16 @@ python = "codemap.indexers.python:PythonIndexer"
 http_route = "codemap.core.bridge.http_route:HttpRouteBridge"
 python_cross_module = "codemap.core.bridge.python_cross_module:PythonCrossModuleBridge"
 
+[project.entry-points."codemap.project_indexers"]
+# Project-level indexers (whole-project pass) register here. Empty by
+# default; the codemap-java plugin (Plan 2) fills `java =
+# codemap_java.indexer:JavaScipIndexer`.
+
+[project.entry-points."codemap.emitters"]
+# Output emitters register here. Empty by default; the codemap-aimemory
+# plugin (Plan 4) fills `ai-memory =
+# codemap_aimemory.emitter:AiMemoryEmitter`.
+
 # ---------------------------------------------------------------------------
 # Hatch
 # ---------------------------------------------------------------------------
@@ -230,6 +240,16 @@ forbidden_modules = [
 name = "indexers may not import cli/mcp/io"
 type = "forbidden"
 source_modules = ["codemap.indexers"]
+forbidden_modules = [
+    "codemap.cli",
+    "codemap.mcp",
+    "codemap.io",
+]
+
+[[tool.importlinter.contracts]]
+name = "emitters may not import cli/mcp/io"
+type = "forbidden"
+source_modules = ["codemap.emitters"]
 forbidden_modules = [
     "codemap.cli",
     "codemap.mcp",

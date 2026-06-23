@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from codemap.core.store import ReadOnlyStore
-from codemap.emitters.base import EmitContext, Emitter, EmitResult
+from codemap.emitters.base import EmitContext, EmitResult, Emitter
 from codemap.emitters.registry import EmitterRegistry
 
 
