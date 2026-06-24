@@ -9,8 +9,9 @@ CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI A
 路由映射与跨文件关联。索引过程是静态的、快速的、可复现的 —— **索引
 路径上不依赖任何 LLM**。
 
-**状态**:0.2.0 稳定版。已发布到 PyPI,主包名 `codemap-core`,
-另含 17 个 `codemap-<lang>` 语言插件。
+**状态**:0.3.0 稳定版。已发布到 PyPI,主包名 `codemap-core`,
+另含 17 个 `codemap-<lang>` 语言插件 + 2 个框架/输出插件
+(`codemap-mybatis`、`codemap-aimemory`,0.3.0 新增)。
 
 > 👉 **想直接动手?** [`INSTALL.zh-CN.md`](./INSTALL.zh-CN.md) 是完整
 > 安装指南 —— 覆盖 `pipx` / `uv tool` / `pip` 三种装法、语言插件注入、
@@ -92,6 +93,10 @@ pipx inject codemap codemap-typescript codemap-javascript codemap-vue \
                     codemap-ruby codemap-php codemap-sql \
                     codemap-bash codemap-c codemap-cpp \
                     codemap-csharp codemap-scala
+
+# 0.3.0 新增的两个插件 —— 框架感知 (Spring/MyBatis 调用图) 与
+# 四层记忆模型 L1 输出 (.ai-memory/)。完全可选,codemap-core 不依赖。
+pipx inject codemap codemap-mybatis codemap-aimemory
 ```
 
 若主包是用 `pip` 装的:
@@ -102,6 +107,9 @@ pip install codemap-typescript codemap-javascript codemap-vue \
             codemap-swift codemap-kotlin codemap-ruby codemap-php \
             codemap-sql codemap-bash codemap-c codemap-cpp \
             codemap-csharp codemap-scala
+
+# 框架/输出插件
+pip install codemap-mybatis codemap-aimemory
 ```
 
 只装单个插件也可以:

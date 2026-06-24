@@ -1,0 +1,6 @@
+target/
+.codemap/
+.ai-memory/
+.mvn/wrapper/maven-wrapper.jar
+*.scip
+index.scip.json

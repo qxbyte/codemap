@@ -22,16 +22,25 @@ from codemap.cli.renderers import text
 from codemap.config import Config, ConfigError, load_config
 from codemap.config.schema import DEFAULT_PRUNE_DIRS
 from codemap.core.bridge.registry import get_registry as get_bridges
+from codemap.core.git_hotspots import change_counts
 from codemap.core.models import (
     BridgeEntry,
     Diagnostic,
     FileEntry,
     IndexerEntry,
     Manifest,
+    Symbol,
 )
 from codemap.diagnostics.exit_codes import ExitCode
 from codemap.diagnostics.progress import progress_bar
+from codemap.emitters.base import EmitContext
+from codemap.emitters.registry import get_emitter_registry
 from codemap.indexers.base import IndexContext, Indexer
+from codemap.indexers.project_base import ProjectIndexContext
+from codemap.indexers.project_registry import (
+    ProjectIndexerRegistry,
+    get_project_registry,
+)
 from codemap.indexers.registry import get_registry as get_indexers
 from codemap.io.json_store import JsonStore
 
@@ -138,10 +147,13 @@ def register(app: typer.Typer) -> None:
                     no_progress=no_progress,
                 )
             else:
+                _run_project_indexers(path, store)
                 with progress_bar("Indexing", total=len(files), enabled=not no_progress) as bar:
                     for file_path in files:
                         _index_one(file_path, path, store, registry, stats, bar, config)
                 _run_bridges(store, stats, config)
+                _apply_hotspots(store, path)
+                _run_emitters(store, path, stats, config)
             m = _build_manifest(path, indexer_list, stats, config)
             store.set_manifest(m)
             store.commit()
@@ -359,6 +371,87 @@ def _index_one(
     bar.advance(0)  # update spinner
 
 
+def _run_project_indexers(
+    project_root: Path,
+    store: JsonStore,
+    *,
+    registry: ProjectIndexerRegistry | None = None,
+) -> int:
+    """Run all project-level indexers once. Returns symbol count written."""
+    reg = registry or get_project_registry()
+    written = 0
+    for ix in reg.all().values():
+        try:
+            result = ix.index_project(ProjectIndexContext(project_root=project_root))
+        except Exception as exc:
+            logger.exception("project indexer %s failed", ix.name)
+            store.upsert_diagnostics(
+                [
+                    Diagnostic(
+                        severity="error",
+                        file=PurePosixPath("."),
+                        code="PROJECT_INDEXER_CRASH",
+                        message=_short_exception_message(ix.name, exc),
+                        producer=ix.name,
+                    )
+                ]
+            )
+            continue
+        store.upsert_symbols(result.symbols)
+        store.upsert_edges(result.edges)
+        store.upsert_routes(result.routes)
+        store.upsert_diagnostics(result.diagnostics)
+        written += len(result.symbols)
+    return written
+
+
+def _apply_hotspots(store: JsonStore, project_root: Path) -> None:
+    """Annotate every symbol with change_count_90d from git history."""
+    counts = change_counts(project_root, since_days=90)
+    if not counts:
+        return
+    updated: list[Symbol] = []
+    for sym in list(store.iter_symbols()):
+        c = counts.get(str(sym.file))
+        if c is not None:
+            sym.extra["change_count_90d"] = c
+            updated.append(sym)
+    if updated:
+        store.upsert_symbols(updated)
+
+
+def _run_emitters(
+    store: JsonStore,
+    project_root: Path,
+    stats: _IndexStats,
+    config: Config,
+) -> None:
+    out_dir = project_root / ".ai-memory"
+    for emitter in get_emitter_registry().all().values():
+        try:
+            result = emitter.emit(
+                store,
+                EmitContext(project_root=project_root, output_dir=out_dir, config={}),
+            )
+        except Exception as exc:
+            logger.exception("emitter %s failed", emitter.name)
+            store.upsert_diagnostics(
+                [
+                    Diagnostic(
+                        severity="error",
+                        file=PurePosixPath("."),
+                        code="EMITTER_CRASH",
+                        message=_short_exception_message(emitter.name, exc),
+                        producer=emitter.name,
+                    )
+                ]
+            )
+            stats.diagnostics += 1
+            continue
+        store.upsert_diagnostics(result.diagnostics)
+        stats.diagnostics += len(result.diagnostics)
+
+
 def _run_bridges(store: JsonStore, stats: _IndexStats, config: Config) -> None:
     bridges = _select_bridges(config)
     for b in bridges:
@@ -432,6 +525,7 @@ def _do_incremental(
     no_progress: bool,
 ) -> None:
     """Re-index only files whose sha256 changed since the last manifest."""
+    _run_project_indexers(project_root, store)
     prev_manifest = store.manifest()
     prev_files = dict(prev_manifest.files)
     current_paths = _collect_files(project_root, indexer_list, config)
@@ -481,6 +575,8 @@ def _do_incremental(
     if changed or deleted:
         store.clear_bridge_outputs()
         _run_bridges(store, stats, config)
+    _apply_hotspots(store, project_root)
+    _run_emitters(store, project_root, stats, config)
 
 
 def _index_one_prefetched(

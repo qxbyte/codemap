@@ -38,6 +38,8 @@ DEFAULT_PRUNE_DIRS: tuple[str, ...] = (
     ".ruff_cache",
     "dist",
     "build",
+    "target",  # Maven build output
+    "out",  # Gradle build output (IDE default)
 )
 
 

@@ -1,0 +1,691 @@
+- id: cls-AiMemoryEmitter
+  symbol_id: scip-python . . . src/codemap_aimemory/emitter.py/AiMemoryEmitter#
+  file: src/codemap_aimemory/emitter.py
+  line_range:
+  - 47
+  - 157
+  signature: null
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: class
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-emit
+  symbol_id: scip-python . . . src/codemap_aimemory/emitter.py/AiMemoryEmitter#emit().
+  file: src/codemap_aimemory/emitter.py
+  line_range:
+  - 51
+  - 157
+  signature: 'def emit(self, store: ReadOnlyStore, ctx: EmitContext)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-_resolve_out_dir
+  symbol_id: scip-python . . . src/codemap_aimemory/emitter.py/_resolve_out_dir().
+  file: src/codemap_aimemory/emitter.py
+  line_range:
+  - 160
+  - 165
+  signature: 'def _resolve_out_dir(out_dir: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-_atomic_write_tree
+  symbol_id: scip-python . . . src/codemap_aimemory/emitter.py/_atomic_write_tree().
+  file: src/codemap_aimemory/emitter.py
+  line_range:
+  - 168
+  - 184
+  signature: 'def _atomic_write_tree(out_dir: Path, outputs: dict[str, list[Any]])'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: cls-LlmClient
+  symbol_id: scip-python . . . src/codemap_aimemory/enrich.py/LlmClient#
+  file: src/codemap_aimemory/enrich.py
+  line_range:
+  - 39
+  - 42
+  signature: null
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: class
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-describe-af544bd6
+  symbol_id: scip-python . . . src/codemap_aimemory/enrich.py/LlmClient#describe().
+  file: src/codemap_aimemory/enrich.py
+  line_range:
+  - 42
+  - 42
+  signature: 'def describe(self, symbol: dict[str, Any])'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-load_enrichment
+  symbol_id: scip-python . . . src/codemap_aimemory/enrich.py/load_enrichment().
+  file: src/codemap_aimemory/enrich.py
+  line_range:
+  - 45
+  - 57
+  signature: 'def load_enrichment(dir_: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by:
+  - fn-enrich
+  related_tables: []
+  related_rules: []
+- id: fn-enrich
+  symbol_id: scip-python . . . src/codemap_aimemory/enrich.py/enrich().
+  file: src/codemap_aimemory/enrich.py
+  line_range:
+  - 60
+  - 104
+  signature: 'def enrich(store: ReadOnlyStore, llm: LlmClient, out_dir: Path, *, generated_at:
+    str, changed_only: bool=False)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-load_enrichment
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-_resolve_enr_dir
+  symbol_id: scip-python . . . src/codemap_aimemory/enrich.py/_resolve_enr_dir().
+  file: src/codemap_aimemory/enrich.py
+  line_range:
+  - 107
+  - 113
+  signature: 'def _resolve_enr_dir(out_dir: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-prefix_for
+  symbol_id: scip-python . . . src/codemap_aimemory/ids.py/prefix_for().
+  file: src/codemap_aimemory/ids.py
+  line_range:
+  - 36
+  - 37
+  signature: 'def prefix_for(kind: str)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by:
+  - fn-build_entity_ids
+  related_tables: []
+  related_rules: []
+- id: fn-slug_base
+  symbol_id: scip-python . . . src/codemap_aimemory/ids.py/slug_base().
+  file: src/codemap_aimemory/ids.py
+  line_range:
+  - 40
+  - 41
+  signature: 'def slug_base(symbol_id_str: str)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by:
+  - fn-build_entity_ids
+  related_tables: []
+  related_rules: []
+- id: fn-build_entity_ids
+  symbol_id: scip-python . . . src/codemap_aimemory/ids.py/build_entity_ids().
+  file: src/codemap_aimemory/ids.py
+  line_range:
+  - 44
+  - 63
+  signature: 'def build_entity_ids(symbol_ids: list[str], kinds: dict[str, str] |
+    None=None)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-prefix_for
+  - fn-slug_base
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-_seed-b542b762
+  symbol_id: scip-python . . . tests/test_emitter.py/_seed().
+  file: tests/test_emitter.py
+  line_range:
+  - 20
+  - 64
+  signature: 'def _seed(store: JsonStore)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by:
+  - fn-_emit
+  - fn-test_enrichment_overlay_fills_business_meaning
+  - fn-test_edges_to_unknown_symbols_are_dropped
+  related_tables: []
+  related_rules: []
+- id: fn-_emit
+  symbol_id: scip-python . . . tests/test_emitter.py/_emit().
+  file: tests/test_emitter.py
+  line_range:
+  - 67
+  - 75
+  signature: 'def _emit(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_seed-b542b762
+  called_by:
+  - fn-test_emits_all_expected_files
+  - fn-test_functions_yml_carries_metadata
+  - fn-test_tables_yml_has_table_entity
+  - fn-test_files_yml_lists_unique_paths
+  - fn-test_call_graph_yml
+  - fn-test_table_relations_yml
+  - fn-test_rule_constraints_yml_is_empty_placeholder
+  related_tables: []
+  related_rules: []
+- id: fn-test_emits_all_expected_files
+  symbol_id: scip-python . . . tests/test_emitter.py/test_emits_all_expected_files().
+  file: tests/test_emitter.py
+  line_range:
+  - 81
+  - 92
+  signature: 'def test_emits_all_expected_files(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_emit
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_functions_yml_carries_metadata
+  symbol_id: scip-python . . . tests/test_emitter.py/test_functions_yml_carries_metadata().
+  file: tests/test_emitter.py
+  line_range:
+  - 95
+  - 106
+  signature: 'def test_functions_yml_carries_metadata(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_emit
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_tables_yml_has_table_entity
+  symbol_id: scip-python . . . tests/test_emitter.py/test_tables_yml_has_table_entity().
+  file: tests/test_emitter.py
+  line_range:
+  - 109
+  - 112
+  signature: 'def test_tables_yml_has_table_entity(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_emit
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_files_yml_lists_unique_paths
+  symbol_id: scip-python . . . tests/test_emitter.py/test_files_yml_lists_unique_paths().
+  file: tests/test_emitter.py
+  line_range:
+  - 115
+  - 119
+  signature: 'def test_files_yml_lists_unique_paths(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_emit
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_call_graph_yml
+  symbol_id: scip-python . . . tests/test_emitter.py/test_call_graph_yml().
+  file: tests/test_emitter.py
+  line_range:
+  - 125
+  - 131
+  signature: 'def test_call_graph_yml(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_emit
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_table_relations_yml
+  symbol_id: scip-python . . . tests/test_emitter.py/test_table_relations_yml().
+  file: tests/test_emitter.py
+  line_range:
+  - 134
+  - 142
+  signature: 'def test_table_relations_yml(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_emit
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_rule_constraints_yml_is_empty_placeholder
+  symbol_id: scip-python . . . tests/test_emitter.py/test_rule_constraints_yml_is_empty_placeholder().
+  file: tests/test_emitter.py
+  line_range:
+  - 145
+  - 148
+  signature: 'def test_rule_constraints_yml_is_empty_placeholder(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_emit
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_enrichment_overlay_fills_business_meaning
+  symbol_id: scip-python . . . tests/test_emitter.py/test_enrichment_overlay_fills_business_meaning().
+  file: tests/test_emitter.py
+  line_range:
+  - 154
+  - 178
+  signature: 'def test_enrichment_overlay_fills_business_meaning(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_seed-b542b762
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_edges_to_unknown_symbols_are_dropped
+  symbol_id: scip-python . . . tests/test_emitter.py/test_edges_to_unknown_symbols_are_dropped().
+  file: tests/test_emitter.py
+  line_range:
+  - 184
+  - 204
+  signature: 'def test_edges_to_unknown_symbols_are_dropped(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_seed-b542b762
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: cls-_FakeLlm
+  symbol_id: scip-python . . . tests/test_enrich.py/_FakeLlm#
+  file: tests/test_enrich.py
+  line_range:
+  - 19
+  - 30
+  signature: null
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: class
+  calls: []
+  called_by:
+  - fn-test_enrich_writes_one_file_per_fn_method
+  - fn-test_enrich_changed_only_skips_existing
+  - fn-test_enrich_changed_only_skips_existing
+  - fn-test_enrich_passes_signature_and_file_to_llm
+  - fn-test_enrich_skipped_classes_dont_invoke_llm
+  related_tables: []
+  related_rules: []
+- id: fn-__init__
+  symbol_id: scip-python . . . tests/test_enrich.py/_FakeLlm#__init__().
+  file: tests/test_enrich.py
+  line_range:
+  - 22
+  - 23
+  signature: def __init__(self)
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-describe-ce16f417
+  symbol_id: scip-python . . . tests/test_enrich.py/_FakeLlm#describe().
+  file: tests/test_enrich.py
+  line_range:
+  - 25
+  - 30
+  signature: 'def describe(self, symbol: dict[str, Any])'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-_seed-69227611
+  symbol_id: scip-python . . . tests/test_enrich.py/_seed().
+  file: tests/test_enrich.py
+  line_range:
+  - 33
+  - 52
+  signature: 'def _seed(store: JsonStore)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by:
+  - fn-test_enrich_writes_one_file_per_fn_method
+  - fn-test_enrich_changed_only_skips_existing
+  - fn-test_enrich_passes_signature_and_file_to_llm
+  - fn-test_enrich_skipped_classes_dont_invoke_llm
+  related_tables: []
+  related_rules: []
+- id: fn-test_load_enrichment_returns_empty_when_dir_missing
+  symbol_id: scip-python . . . tests/test_enrich.py/test_load_enrichment_returns_empty_when_dir_missing().
+  file: tests/test_enrich.py
+  line_range:
+  - 58
+  - 59
+  signature: 'def test_load_enrichment_returns_empty_when_dir_missing(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_load_enrichment_reads_yaml_indexed_by_symbol_id
+  symbol_id: scip-python . . . tests/test_enrich.py/test_load_enrichment_reads_yaml_indexed_by_symbol_id().
+  file: tests/test_enrich.py
+  line_range:
+  - 62
+  - 73
+  signature: 'def test_load_enrichment_reads_yaml_indexed_by_symbol_id(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_load_enrichment_skips_yaml_without_symbol_id
+  symbol_id: scip-python . . . tests/test_enrich.py/test_load_enrichment_skips_yaml_without_symbol_id().
+  file: tests/test_enrich.py
+  line_range:
+  - 76
+  - 80
+  signature: 'def test_load_enrichment_skips_yaml_without_symbol_id(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_enrich_writes_one_file_per_fn_method
+  symbol_id: scip-python . . . tests/test_enrich.py/test_enrich_writes_one_file_per_fn_method().
+  file: tests/test_enrich.py
+  line_range:
+  - 86
+  - 100
+  signature: 'def test_enrich_writes_one_file_per_fn_method(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_seed-69227611
+  - cls-_FakeLlm
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_enrich_changed_only_skips_existing
+  symbol_id: scip-python . . . tests/test_enrich.py/test_enrich_changed_only_skips_existing().
+  file: tests/test_enrich.py
+  line_range:
+  - 103
+  - 115
+  signature: 'def test_enrich_changed_only_skips_existing(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - fn-_seed-69227611
+  - cls-_FakeLlm
+  - cls-_FakeLlm
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_enrich_passes_signature_and_file_to_llm
+  symbol_id: scip-python . . . tests/test_enrich.py/test_enrich_passes_signature_and_file_to_llm().
+  file: tests/test_enrich.py
+  line_range:
+  - 118
+  - 125
+  signature: 'def test_enrich_passes_signature_and_file_to_llm(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - cls-_FakeLlm
+  - fn-_seed-69227611
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_enrich_skipped_classes_dont_invoke_llm
+  symbol_id: scip-python . . . tests/test_enrich.py/test_enrich_skipped_classes_dont_invoke_llm().
+  file: tests/test_enrich.py
+  line_range:
+  - 128
+  - 135
+  signature: 'def test_enrich_skipped_classes_dont_invoke_llm(tmp_path: Path)'
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls:
+  - cls-_FakeLlm
+  - fn-_seed-69227611
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_prefix_for_known_kinds
+  symbol_id: scip-python . . . tests/test_ids.py/test_prefix_for_known_kinds().
+  file: tests/test_ids.py
+  line_range:
+  - 8
+  - 16
+  signature: def test_prefix_for_known_kinds()
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_prefix_for_unknown_kind_falls_back
+  symbol_id: scip-python . . . tests/test_ids.py/test_prefix_for_unknown_kind_falls_back().
+  file: tests/test_ids.py
+  line_range:
+  - 19
+  - 20
+  signature: def test_prefix_for_unknown_kind_falls_back()
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_slug_base_takes_last_descriptor_name
+  symbol_id: scip-python . . . tests/test_ids.py/test_slug_base_takes_last_descriptor_name().
+  file: tests/test_ids.py
+  line_range:
+  - 23
+  - 24
+  signature: def test_slug_base_takes_last_descriptor_name()
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_single_symbol_no_suffix
+  symbol_id: scip-python . . . tests/test_ids.py/test_single_symbol_no_suffix().
+  file: tests/test_ids.py
+  line_range:
+  - 27
+  - 30
+  signature: def test_single_symbol_no_suffix()
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_collision_gets_hash_suffix_on_every_entry
+  symbol_id: scip-python . . . tests/test_ids.py/test_collision_gets_hash_suffix_on_every_entry().
+  file: tests/test_ids.py
+  line_range:
+  - 33
+  - 43
+  signature: def test_collision_gets_hash_suffix_on_every_entry()
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_distinct_simple_names_no_collision
+  symbol_id: scip-python . . . tests/test_ids.py/test_distinct_simple_names_no_collision().
+  file: tests/test_ids.py
+  line_range:
+  - 46
+  - 53
+  signature: def test_distinct_simple_names_no_collision()
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_kinds_drive_prefix
+  symbol_id: scip-python . . . tests/test_ids.py/test_kinds_drive_prefix().
+  file: tests/test_ids.py
+  line_range:
+  - 56
+  - 64
+  signature: def test_kinds_drive_prefix()
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_missing_kind_uses_sym_prefix
+  symbol_id: scip-python . . . tests/test_ids.py/test_missing_kind_uses_sym_prefix().
+  file: tests/test_ids.py
+  line_range:
+  - 67
+  - 70
+  signature: def test_missing_kind_uses_sym_prefix()
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []
+- id: fn-test_determinism_stable_under_input_order
+  symbol_id: scip-python . . . tests/test_ids.py/test_determinism_stable_under_input_order().
+  file: tests/test_ids.py
+  line_range:
+  - 73
+  - 77
+  signature: def test_determinism_stable_under_input_order()
+  confidence: high
+  change_count_90d: null
+  business_meaning: null
+  type: function
+  calls: []
+  called_by: []
+  related_tables: []
+  related_rules: []

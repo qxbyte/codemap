@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "codemap-rust"
-version = "0.2.2"
+version = "0.3.0"
 description = "Rust indexer plugin for CodeMap"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Software Development",
 ]
 dependencies = [
-    "codemap-core>=0.2.0,<0.3",
+    "codemap-core>=0.3.0,<0.4",
     "tree-sitter>=0.25",
     "tree-sitter-rust>=0.23",
 ]
