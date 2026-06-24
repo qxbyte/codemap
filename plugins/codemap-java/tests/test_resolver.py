@@ -297,9 +297,7 @@ def test_unresolved_call_does_not_build_edge_and_does_not_crash() -> None:
         rel_path="src/a/Foo.java",
     )
     result = JavaCallResolverBridge().resolve(_StubStore(symbols))
-    assert not any(
-        e.target.descriptors[-1].name == "unknownMethod" for e in result.edges
-    )
+    assert not any(e.target.descriptors[-1].name == "unknownMethod" for e in result.edges)
 
 
 # ---------------------------------------------------------------------------
@@ -317,8 +315,7 @@ def test_non_java_symbols_ignored() -> None:
         language="python",
         file=PurePosixPath("a.py"),
         range=Range(start_line=1, end_line=1),
-        extra={"pending_calls": [{"receiver": "", "name": "bar", "arity": 0,
-                                  "line": 1, "col": 0}]},
+        extra={"pending_calls": [{"receiver": "", "name": "bar", "arity": 0, "line": 1, "col": 0}]},
     )
     result = JavaCallResolverBridge().resolve(_StubStore([py_sym]))
     assert result.edges == []

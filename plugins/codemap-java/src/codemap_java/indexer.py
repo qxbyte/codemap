@@ -344,9 +344,7 @@ def _parse_supertypes(type_node: tree_sitter.Node) -> list[dict[str, str]]:
         if ttype == "superclass":
             out.extend({"name": name, "relation": "extends"} for name in _supertype_names(child))
         elif ttype == "super_interfaces":
-            out.extend(
-                {"name": name, "relation": "implements"} for name in _supertype_names(child)
-            )
+            out.extend({"name": name, "relation": "implements"} for name in _supertype_names(child))
         # `interface` declarations: extends_interfaces.
         elif ttype == "extends_interfaces":
             out.extend({"name": name, "relation": "extends"} for name in _supertype_names(child))

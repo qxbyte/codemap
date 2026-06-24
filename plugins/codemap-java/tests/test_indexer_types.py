@@ -139,11 +139,7 @@ def test_constructor_param_types_recorded() -> None:
         }
         """
     )
-    ctors = [
-        s
-        for s in r.symbols
-        if s.kind == "method" and s.id.descriptors[-1].name == "<init>"
-    ]
+    ctors = [s for s in r.symbols if s.kind == "method" and s.id.descriptors[-1].name == "<init>"]
     assert ctors[0].extra["params"] == [{"name": "m", "type": "CouponMapper"}]
 
 

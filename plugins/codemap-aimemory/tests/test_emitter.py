@@ -69,9 +69,7 @@ def _emit(tmp_path: Path) -> Path:
     with JsonStore.open(tmp_path / ".codemap") as store:
         _seed(store)
         store.commit()
-        AiMemoryEmitter().emit(
-            store, EmitContext(project_root=tmp_path, output_dir=out)
-        )
+        AiMemoryEmitter().emit(store, EmitContext(project_root=tmp_path, output_dir=out))
     return out
 
 
@@ -125,10 +123,7 @@ def test_files_yml_lists_unique_paths(tmp_path: Path) -> None:
 def test_call_graph_yml(tmp_path: Path) -> None:
     out = _emit(tmp_path)
     rels = yaml.safe_load((out / "relations/call-graph.yml").read_text())
-    assert any(
-        r["from"] == "fn-go" and r["to"] == "fn-calc" and r["type"] == "calls"
-        for r in rels
-    )
+    assert any(r["from"] == "fn-go" and r["to"] == "fn-calc" and r["type"] == "calls" for r in rels)
 
 
 def test_table_relations_yml(tmp_path: Path) -> None:
@@ -144,8 +139,10 @@ def test_table_relations_yml(tmp_path: Path) -> None:
 
 def test_rule_constraints_yml_is_empty_placeholder(tmp_path: Path) -> None:
     out = _emit(tmp_path)
-    assert yaml.safe_load((out / "relations/rule-constraints.yml").read_text()) is None or \
-        yaml.safe_load((out / "relations/rule-constraints.yml").read_text()) == []
+    assert (
+        yaml.safe_load((out / "relations/rule-constraints.yml").read_text()) is None
+        or yaml.safe_load((out / "relations/rule-constraints.yml").read_text()) == []
+    )
 
 
 # ----- enrichment overlay -----
@@ -169,9 +166,7 @@ def test_enrichment_overlay_fills_business_meaning(tmp_path: Path) -> None:
     with JsonStore.open(tmp_path / ".codemap") as store:
         _seed(store)
         store.commit()
-        AiMemoryEmitter().emit(
-            store, EmitContext(project_root=tmp_path, output_dir=out)
-        )
+        AiMemoryEmitter().emit(store, EmitContext(project_root=tmp_path, output_dir=out))
     fns = yaml.safe_load((out / "entities/functions.yml").read_text())
     fn_calc = next(fn for fn in fns if fn["symbol_id"] == _FN)
     assert fn_calc["business_meaning"] == "计算订单价格"
@@ -197,8 +192,6 @@ def test_edges_to_unknown_symbols_are_dropped(tmp_path: Path) -> None:
         )
         store.commit()
         out = tmp_path / ".ai-memory"
-        AiMemoryEmitter().emit(
-            store, EmitContext(project_root=tmp_path, output_dir=out)
-        )
+        AiMemoryEmitter().emit(store, EmitContext(project_root=tmp_path, output_dir=out))
     rels = yaml.safe_load((out / "relations/call-graph.yml").read_text())
     assert not any(r["to"].endswith("-u") for r in rels)

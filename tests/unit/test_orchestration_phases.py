@@ -115,14 +115,10 @@ class _FakeEmitter:
         return EmitResult(files_written=["out.yml"], diagnostics=[])
 
 
-def test_run_emitters_invokes_registered(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_run_emitters_invokes_registered(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     em_reg = EmitterRegistry()
     em_reg.register(_FakeEmitter())
-    monkeypatch.setattr(
-        "codemap.cli.commands.index.get_emitter_registry", lambda: em_reg
-    )
+    monkeypatch.setattr("codemap.cli.commands.index.get_emitter_registry", lambda: em_reg)
     stats = _IndexStats()
     config = load_config(None)
     with JsonStore.open(tmp_path / ".codemap") as store:

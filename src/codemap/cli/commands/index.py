@@ -431,9 +431,7 @@ def _run_emitters(
         try:
             result = emitter.emit(
                 store,
-                EmitContext(
-                    project_root=project_root, output_dir=out_dir, config={}
-                ),
+                EmitContext(project_root=project_root, output_dir=out_dir, config={}),
             )
         except Exception as exc:
             logger.exception("emitter %s failed", emitter.name)

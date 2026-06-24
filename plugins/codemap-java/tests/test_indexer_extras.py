@@ -136,10 +136,7 @@ def test_simple_method_invocation_recorded() -> None:
     )
     methods = _methods(result)
     calls = methods[0].extra["pending_calls"]
-    assert any(
-        c["receiver"] == "bar" and c["name"] == "greet" and c["arity"] == 1
-        for c in calls
-    )
+    assert any(c["receiver"] == "bar" and c["name"] == "greet" and c["arity"] == 1 for c in calls)
 
 
 def test_unqualified_invocation_has_empty_receiver() -> None:
@@ -167,10 +164,7 @@ def test_static_invocation_records_class_receiver() -> None:
         """
     )
     calls = _methods(result)[0].extra["pending_calls"]
-    assert any(
-        c["receiver"] == "Math" and c["name"] == "max" and c["arity"] == 2
-        for c in calls
-    )
+    assert any(c["receiver"] == "Math" and c["name"] == "max" and c["arity"] == 2 for c in calls)
 
 
 def test_this_invocation_records_this_receiver() -> None:

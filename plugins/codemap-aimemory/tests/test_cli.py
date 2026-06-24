@@ -28,11 +28,13 @@ from codemap.io.json_store import JsonStore
 def _make_app() -> typer.Typer:
     app = typer.Typer(no_args_is_help=False)
     register(app)
+
     # Force typer to keep `enrich` as a named subcommand even though it's
     # the only one (typer "collapses" single-command apps otherwise).
     @app.command("_noop", hidden=True)
     def _noop() -> None:  # pragma: no cover
         pass
+
     return app
 
 
@@ -125,9 +127,7 @@ def test_cli_dry_run_counts_method_symbols(tmp_path: Path) -> None:
     assert "Would enrich 1 function/method symbols" in result.output
 
 
-def test_cli_errors_when_no_api_key(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cli_errors_when_no_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _seed_index(tmp_path)
     for name in ("CODEMAP_LLM_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
         monkeypatch.delenv(name, raising=False)
@@ -163,9 +163,7 @@ def test_cli_ollama_does_not_require_api_key(
     assert called["base"] == "http://localhost:11434/v1"
 
 
-def test_cli_uses_explicit_base_url(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cli_uses_explicit_base_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _seed_index(tmp_path)
     captured: dict[str, Any] = {}
 

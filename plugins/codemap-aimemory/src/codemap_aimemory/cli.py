@@ -95,8 +95,7 @@ def register(app: typer.Typer) -> None:
             bool,
             typer.Option(
                 "--dry-run",
-                help="Report what would be enriched and exit without calling "
-                "the LLM.",
+                help="Report what would be enriched and exit without calling the LLM.",
             ),
         ] = False,
     ) -> None:
@@ -123,9 +122,7 @@ def register(app: typer.Typer) -> None:
 
         if dry_run:
             with JsonStore.open(codemap_dir, mode="r") as store:
-                fn_count = sum(
-                    1 for s in store.iter_symbols() if s.kind in {"method", "function"}
-                )
+                fn_count = sum(1 for s in store.iter_symbols() if s.kind in {"method", "function"})
             typer.echo(
                 f"Would enrich {fn_count} function/method symbols using "
                 f"{backend}/{model}.\nOutput dir: {out_dir / 'enrichment'}"
@@ -157,6 +154,4 @@ def register(app: typer.Typer) -> None:
                 generated_at=generated_at,
                 changed_only=changed_only,
             )
-        typer.echo(
-            f"Wrote {len(written)} enrichment file(s) under {out_dir / 'enrichment'}."
-        )
+        typer.echo(f"Wrote {len(written)} enrichment file(s) under {out_dir / 'enrichment'}.")

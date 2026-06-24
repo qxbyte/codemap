@@ -100,9 +100,7 @@ def test_full_chain_edges_present(hello_spring_project: Path) -> None:
     edges = _run_index(hello_spring_project)
     actual = {_edge_signature(e) for e in edges}
     missing = EXPECTED_EDGES - actual
-    assert not missing, (
-        "chain incomplete — missing edges:\n  " + "\n  ".join(map(repr, missing))
-    )
+    assert not missing, "chain incomplete — missing edges:\n  " + "\n  ".join(map(repr, missing))
 
 
 # ---------------------------------------------------------------------------

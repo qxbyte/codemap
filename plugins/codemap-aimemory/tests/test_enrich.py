@@ -62,12 +62,8 @@ def test_load_enrichment_returns_empty_when_dir_missing(tmp_path: Path) -> None:
 def test_load_enrichment_reads_yaml_indexed_by_symbol_id(tmp_path: Path) -> None:
     d = tmp_path / "enrichment"
     d.mkdir()
-    (d / "a.yml").write_text(
-        yaml.safe_dump({"symbol_id": "sid-1", "business_meaning": "x"})
-    )
-    (d / "b.yml").write_text(
-        yaml.safe_dump({"symbol_id": "sid-2", "business_meaning": "y"})
-    )
+    (d / "a.yml").write_text(yaml.safe_dump({"symbol_id": "sid-1", "business_meaning": "x"}))
+    (d / "b.yml").write_text(yaml.safe_dump({"symbol_id": "sid-2", "business_meaning": "y"}))
     loaded = load_enrichment(d)
     assert loaded["sid-1"]["business_meaning"] == "x"
     assert loaded["sid-2"]["business_meaning"] == "y"
@@ -87,9 +83,7 @@ def test_enrich_writes_one_file_per_fn_method(tmp_path: Path) -> None:
     with JsonStore.open(tmp_path / ".codemap") as store:
         _seed(store)
         store.commit()
-        written = enrich(
-            store, _FakeLlm(), tmp_path / ".ai-memory", generated_at="2026-06-24"
-        )
+        written = enrich(store, _FakeLlm(), tmp_path / ".ai-memory", generated_at="2026-06-24")
     assert len(written) == 1
     loaded = load_enrichment(tmp_path / ".ai-memory" / "enrichment")
     assert _FN in loaded
@@ -108,9 +102,7 @@ def test_enrich_changed_only_skips_existing(tmp_path: Path) -> None:
         # 1st pass: writes everything
         first = enrich(store, _FakeLlm(), out, generated_at="d1")
         # 2nd pass with changed_only=True: should write nothing new
-        second = enrich(
-            store, _FakeLlm(), out, generated_at="d2", changed_only=True
-        )
+        second = enrich(store, _FakeLlm(), out, generated_at="d2", changed_only=True)
     assert first
     assert second == []
 

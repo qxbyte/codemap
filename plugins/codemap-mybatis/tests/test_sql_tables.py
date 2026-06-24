@@ -11,9 +11,7 @@ def test_simple_select_from() -> None:
 
 
 def test_join_marks_as_read() -> None:
-    refs = table_refs(
-        "SELECT * FROM sf_coupon c JOIN sf_user u ON c.uid = u.id"
-    )
+    refs = table_refs("SELECT * FROM sf_coupon c JOIN sf_user u ON c.uid = u.id")
     assert ("sf_coupon", "read") in refs
     assert ("sf_user", "read") in refs
 

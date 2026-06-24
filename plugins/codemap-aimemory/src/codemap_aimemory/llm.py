@@ -61,8 +61,7 @@ class OpenAICompatibleClient:
             import httpx
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError(
-                "codemap enrich requires httpx. "
-                "Install with: pip install codemap-aimemory[llm]"
+                "codemap enrich requires httpx. Install with: pip install codemap-aimemory[llm]"
             ) from exc
 
         payload = {
@@ -192,9 +191,7 @@ def build_client(
             api_key=api_key or "ollama",
             base_url=base_url or "http://localhost:11434/v1",
         )
-    raise ValueError(
-        f"unknown LLM backend {backend!r}; expected openai / anthropic / ollama"
-    )
+    raise ValueError(f"unknown LLM backend {backend!r}; expected openai / anthropic / ollama")
 
 
 def env_default(*names: str) -> str | None:

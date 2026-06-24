@@ -139,9 +139,7 @@ def test_dollar_substitution_lowers_to_low() -> None:
 
 def test_all_four_verbs_produce_mappings() -> None:
     r = _index(_XML_MIXED)
-    names = {
-        s.id.descriptors[-1].name for s in r.symbols if s.kind == "sql_mapping"
-    }
+    names = {s.id.descriptors[-1].name for s in r.symbols if s.kind == "sql_mapping"}
     assert names == {"get", "touch", "add", "del"}
 
 
