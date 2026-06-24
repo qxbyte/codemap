@@ -157,6 +157,10 @@ class _ScriptVisitor:
         self.block = block
         self.symbols: list[Symbol] = []
         self._class_stack: list[str] = []
+        # When inside a function body, the topmost ``http_calls`` collector
+        # accumulates axios/fetch invocations to attach to the enclosing
+        # function symbol on exit. Pairs (symbol, calls list).
+        self._fn_stack: list[tuple[Symbol, list[dict[str, str]]]] = []
 
     def visit(self, node: tree_sitter.Node) -> None:
         kind = node.type
@@ -171,6 +175,8 @@ class _ScriptVisitor:
             return
         if kind in {"lexical_declaration", "variable_declaration"}:
             self._visit_top_level_declaration(node)
+        if kind == "call_expression":
+            self._maybe_record_http_call(node)
         for child in node.children:
             self.visit(child)
 
@@ -204,21 +210,28 @@ class _ScriptVisitor:
         sid = self._make_id(name, descriptor_kind=DescriptorKind.METHOD)
         kind: str = "method" if is_method or self._class_stack else "function"
         signature = _function_signature(node, name)
-        self.symbols.append(
-            Symbol(
-                id=sid,
-                kind=kind,  # type: ignore[arg-type]
-                language=LANG,
-                file=self.relative_path,
-                range=self._node_range(node),
-                signature=signature,
-                extra={"vue_block_lang": self.block.lang},
-            )
+        symbol = Symbol(
+            id=sid,
+            kind=kind,  # type: ignore[arg-type]
+            language=LANG,
+            file=self.relative_path,
+            range=self._node_range(node),
+            signature=signature,
+            extra={"vue_block_lang": self.block.lang},
         )
+        self.symbols.append(symbol)
         body = node.child_by_field_name("body")
-        if body is not None:
+        if body is None:
+            return
+        http_calls: list[dict[str, str]] = []
+        self._fn_stack.append((symbol, http_calls))
+        try:
             for child in body.children:
                 self.visit(child)
+        finally:
+            self._fn_stack.pop()
+        if http_calls:
+            symbol.extra["http_calls"] = http_calls
 
     def _visit_top_level_declaration(self, node: tree_sitter.Node) -> None:
         if self._class_stack:
@@ -243,6 +256,15 @@ class _ScriptVisitor:
                     extra={"vue_block_lang": self.block.lang},
                 )
             )
+
+    def _maybe_record_http_call(self, node: tree_sitter.Node) -> None:
+        """If ``node`` is an axios / fetch call inside a function we know about,
+        append a record to the enclosing function's http_calls list."""
+        if not self._fn_stack:
+            return
+        record = _classify_http_call(node)
+        if record is not None:
+            self._fn_stack[-1][1].append(record)
 
     def _make_id(self, name: str, *, descriptor_kind: DescriptorKind) -> SymbolID:
         descriptors = list(_path_namespaces(self.relative_path))
@@ -291,3 +313,74 @@ def _function_signature(node: tree_sitter.Node, name: str) -> str:
         params_text = params.text.decode("utf-8")
     prefix = "function" if node.type == "function_declaration" else ""
     return (f"{prefix} {name}{params_text}").strip()
+
+
+# ---------------------------------------------------------------------------
+# HTTP-call classification (Plan 4 Task 1)
+# ---------------------------------------------------------------------------
+
+_HTTP_VERBS = {"get", "post", "put", "delete", "patch", "head", "options"}
+
+
+def _classify_http_call(node: tree_sitter.Node) -> dict[str, str] | None:
+    """Recognize ``axios.<verb>(url, ...)`` / ``this.$axios.<verb>(...)`` /
+    ``fetch(url, ...)`` and return ``{method, url, confidence}`` or ``None``
+    for any other call. URL confidence is ``medium`` for plain string
+    literals, ``low`` for templates / concatenations / non-string args."""
+    fn = node.child_by_field_name("function")
+    args = node.child_by_field_name("arguments")
+    if fn is None or args is None:
+        return None
+
+    verb: str | None = None
+    if fn.type == "identifier" and _decoded(fn) == "fetch":
+        verb = "GET"
+    elif fn.type == "member_expression":
+        prop = fn.child_by_field_name("property")
+        obj = fn.child_by_field_name("object")
+        if prop is None or obj is None:
+            return None
+        prop_name = _decoded(prop).lower()
+        if prop_name not in _HTTP_VERBS:
+            return None
+        obj_text = _decoded(obj)
+        if "axios" not in obj_text and "$http" not in obj_text:
+            return None
+        verb = prop_name.upper()
+
+    if verb is None:
+        return None
+
+    first_arg = _first_named_child(args)
+    if first_arg is None:
+        return None
+    url, confidence = _extract_url(first_arg)
+    if url is None:
+        return None
+    return {"method": verb, "url": url, "confidence": confidence}
+
+
+def _first_named_child(args_node: tree_sitter.Node) -> tree_sitter.Node | None:
+    for child in args_node.children:
+        if child.type not in {"(", ")", ","}:
+            return child
+    return None
+
+
+def _extract_url(arg: tree_sitter.Node) -> tuple[str | None, str]:
+    text = _decoded(arg)
+    if arg.type == "string":
+        return text.strip("'\"`"), "medium"
+    if arg.type == "template_string":
+        return text.strip("`"), "low"
+    if arg.type in {"binary_expression"}:
+        # Best-effort: take the leftmost string literal if any.
+        for child in arg.children:
+            if child.type == "string":
+                return _decoded(child).strip("'\""), "low"
+        return None, "low"
+    return None, "low"
+
+
+def _decoded(node: tree_sitter.Node) -> str:
+    return node.text.decode("utf-8") if node.text is not None else ""
