@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codemap-mybatis"
+version = "0.1.0"
+description = "MyBatis Mapper XML indexer plugin for CodeMap"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "CodeMap Contributors" }]
+keywords = ["codemap", "mybatis", "indexer"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development",
+]
+dependencies = [
+    "codemap-core>=0.2.0,<0.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.entry-points."codemap.indexers"]
+mybatis = "codemap_mybatis:MyBatisIndexer"
+
+[project.entry-points."codemap.bridges"]
+mybatis_link = "codemap_mybatis.link:MyBatisLinkBridge"
+
+[project.urls]
+Homepage = "https://github.com/qxbyte/codemap"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codemap_mybatis"]

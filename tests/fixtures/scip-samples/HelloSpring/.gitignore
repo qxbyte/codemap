@@ -1,4 +1,5 @@
 target/
+.codemap/
 .mvn/wrapper/maven-wrapper.jar
 *.scip
 index.scip.json
