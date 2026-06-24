@@ -26,7 +26,7 @@ from typing import ClassVar
 import tree_sitter
 import tree_sitter_java
 
-from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
+from codemap.core.models import Annotation, Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
 
@@ -109,6 +109,7 @@ class _Visitor:
         self.edges: list[Edge] = []
         self.diagnostics: list[Diagnostic] = []
         self._class_stack: list[str] = []
+        self._class_annos_stack: list[list[Annotation]] = []
         self._package: str = ""
         self._file_imports: list[str] = []
 
@@ -145,6 +146,7 @@ class _Visitor:
         java_kind = node.type.removesuffix("_declaration")
         is_top_level = not self._class_stack
         sid = self._make_id(name, kind=DescriptorKind.TYPE)
+        annotations = _parse_annotations(node)
         extra: dict[str, object] = {}
         if self._package or java_kind != "class":
             extra["java_kind"] = java_kind
@@ -159,6 +161,7 @@ class _Visitor:
                 language=LANG,
                 file=self.relative_path,
                 range=_node_range(node),
+                annotations=annotations,
                 extra=extra,
             )
         )
@@ -166,11 +169,13 @@ class _Visitor:
         if body is None:
             return
         self._class_stack.append(name)
+        self._class_annos_stack.append(annotations)
         try:
             for child in body.children:
                 self.visit(child)
         finally:
             self._class_stack.pop()
+            self._class_annos_stack.pop()
 
     # ----------------------------------------------------------- members
 
@@ -188,6 +193,7 @@ class _Visitor:
         body = node.child_by_field_name("body")
         pending_calls = _collect_invocations(body) if body is not None else []
         params = _parse_formal_parameters(node.child_by_field_name("parameters"))
+        method_annos = _parse_annotations(node)
         extra: dict[str, object] = {"params": params}
         if not is_constructor:
             ret = node.child_by_field_name("type")
@@ -195,6 +201,10 @@ class _Visitor:
                 extra["return_type"] = _strip_generics(_node_text(ret))
         if pending_calls:
             extra["pending_calls"] = pending_calls
+        class_annos = self._class_annos_stack[-1] if self._class_annos_stack else []
+        route = _http_route_meta(class_annos, method_annos)
+        if route is not None:
+            extra["http_route"] = route
         self.symbols.append(
             Symbol(
                 id=sid,
@@ -203,6 +213,7 @@ class _Visitor:
                 file=self.relative_path,
                 range=_node_range(node),
                 signature=signature,
+                annotations=method_annos,
                 extra=extra,
             )
         )
@@ -454,3 +465,127 @@ def _strip_generics(t: str) -> str:
     if "<" in t:
         return t.split("<", 1)[0].rstrip()
     return t
+
+
+# ---------------------------------------------------------------------------
+# Annotation extraction (Plan 3 Task 1)
+# ---------------------------------------------------------------------------
+
+
+def _parse_annotations(decl_node: tree_sitter.Node) -> list[Annotation]:
+    """Walk a class/method/constructor declaration's ``modifiers`` child and
+    return every ``annotation`` / ``marker_annotation`` it carries as an
+    :class:`Annotation`."""
+    out: list[Annotation] = []
+    for child in decl_node.children:
+        if child.type != "modifiers":
+            continue
+        for m in child.children:
+            if m.type == "marker_annotation":
+                name = _annotation_name(m)
+                if name:
+                    out.append(Annotation(name=name, arguments={}))
+            elif m.type == "annotation":
+                name = _annotation_name(m)
+                args = _annotation_arguments(m)
+                if name:
+                    out.append(Annotation(name=name, arguments=args))
+    return out
+
+
+def _annotation_name(ann_node: tree_sitter.Node) -> str:
+    for child in ann_node.children:
+        if child.type in {"identifier", "scoped_identifier"}:
+            return _node_text(child)
+    return ""
+
+
+def _annotation_arguments(ann_node: tree_sitter.Node) -> dict[str, str]:
+    """``@RequestMapping("/x")`` → ``{"value": "/x"}``;
+    ``@X(name="a", v=1)`` → ``{"name": "a", "v": "1"}``;
+    ``@Override`` → ``{}``."""
+    args: dict[str, str] = {}
+    arglist = None
+    for child in ann_node.children:
+        if child.type == "annotation_argument_list":
+            arglist = child
+            break
+    if arglist is None:
+        return args
+    for child in arglist.children:
+        if child.type == "string_literal":
+            args["value"] = _strip_string_literal(_node_text(child))
+        elif child.type == "element_value_pair":
+            key_node = child.child_by_field_name("key")
+            val_node = child.child_by_field_name("value")
+            if key_node is None or val_node is None:
+                # fall back: first two non-`=` children
+                kids = [c for c in child.children if c.type not in {"="}]
+                if len(kids) < 2:
+                    continue
+                key_node, val_node = kids[0], kids[1]
+            key = _node_text(key_node)
+            value = _strip_string_literal(_node_text(val_node))
+            if key:
+                args[key] = value
+        elif child.type not in {"(", ")", ","} and "value" not in args:
+            # bare non-string single value (e.g. enum member, integer)
+            args["value"] = _strip_string_literal(_node_text(child))
+    return args
+
+
+def _strip_string_literal(s: str) -> str:
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in {'"', "'"}:
+        return s[1:-1]
+    return s
+
+
+# ---------------------------------------------------------------------------
+# Spring http_route metadata (Plan 3 Task 2)
+# ---------------------------------------------------------------------------
+
+_VERB_ANNO = {
+    "GetMapping": "GET",
+    "PostMapping": "POST",
+    "PutMapping": "PUT",
+    "DeleteMapping": "DELETE",
+    "PatchMapping": "PATCH",
+}
+
+
+def _http_route_meta(
+    class_annos: list[Annotation],
+    method_annos: list[Annotation],
+) -> dict[str, str] | None:
+    """Combine class-level ``@RequestMapping`` prefix with the method's verb
+    mapping annotation. Returns ``{"method", "path"}`` or ``None`` when the
+    method has no mapping annotation."""
+    prefix = ""
+    for a in class_annos:
+        if a.name == "RequestMapping":
+            prefix = a.arguments.get("value", a.arguments.get("path", ""))
+            break
+
+    verb: str | None = None
+    path = ""
+    for a in method_annos:
+        if a.name in _VERB_ANNO:
+            verb = _VERB_ANNO[a.name]
+            path = a.arguments.get("value", a.arguments.get("path", ""))
+            break
+
+    if verb is None:
+        for a in method_annos:
+            if a.name == "RequestMapping":
+                verb = "GET"
+                path = a.arguments.get("value", a.arguments.get("path", ""))
+                break
+
+    if verb is None:
+        return None
+    return {"method": verb, "path": _join_route(prefix, path)}
+
+
+def _join_route(prefix: str, path: str) -> str:
+    parts = [seg for seg in (prefix + "/" + path).split("/") if seg]
+    return "/" + "/".join(parts) if parts else "/"
