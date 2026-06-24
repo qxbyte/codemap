@@ -8,6 +8,106 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-25
+
+The four-layer-memory-model L1 release. The plugin family grows from
+**18 to 20** distributions; every package bumps in lockstep to `0.3.0`,
+and every plugin's `codemap-core` dependency widens to `>=0.3.0,<0.4`.
+
+### New plugins (opt-in)
+
+* **`codemap-mybatis`** — MyBatis Mapper XML indexer. Per-file XML
+  parsing yields `sql_mapping` symbols + `table` symbols + DML
+  `accesses_table` edges (confidence graded by SQL complexity —
+  static / dynamic-tag / `${}` substitution). A new `MyBatisLinkBridge`
+  emits `maps_to` edges from Java Mapper interface methods to their
+  backing XML statements (requires `codemap-java` installed).
+* **`codemap-aimemory`** — emits the four-layer memory model's L1
+  layout (`.ai-memory/entities/*.yml` + `.ai-memory/relations/*.yml`)
+  so AI agents can consume the index directly with stable
+  `entity_id` slugs (fn-* / cls-* / tbl-*). Atomic per-file writes
+  (tmp + rename). Includes an optional LLM enrichment overlay — the
+  core index itself remains LLM-free; enrichment writes to a
+  separate `enrichment/` directory keyed by `symbol_id` and is
+  merged only at emit time.
+
+### New core capability
+
+* **Project-level indexer protocol** (`codemap.indexers.project_base`).
+  Mirrors the per-file `Indexer` but consumes the entire project in
+  one pass, for engines whose output is whole-project (Java semantic
+  resolver, future SCIP-backed importers). Lazy-discovered through
+  the new `codemap.project_indexers` entry-point group.
+* **Emitter protocol** (`codemap.emitters`) — third plugin layer
+  alongside indexers / bridges. Registered through
+  `codemap.emitters` entry-point group with the same Protocol +
+  Registry pattern. The orchestrator runs emitters as the last
+  phase of `codemap index` (after bridges + hotspots).
+* **CLI subcommand registration via entry-points**
+  (`codemap.cli_commands`). Plugins can ship typer subcommands —
+  `codemap-aimemory` uses this to register `codemap enrich`.
+* **Git change-hotspot analyzer** (`codemap.core.git_hotspots`).
+  Language-neutral; surfaces `change_count_90d` on every symbol's
+  `extra`. Graceful skip on non-git / unavailable git.
+* `EdgeKind` adds `overrides`, `accesses_table`; `SymbolKind` adds
+  `table`.
+
+### Java engine rewrite (ADR-0013)
+
+* **`codemap-java`** moves from declaration-only to a full call
+  graph. The per-file indexer now captures `imports`, `supertypes`,
+  `pending_calls` (raw invocation records), method `params` /
+  `return_type`, and field `type` on `Symbol.extra`. A new
+  `JavaCallResolverBridge` (registered as `java_calls`) does
+  project-wide FQN resolution to emit `calls` / `extends` /
+  `implements` edges at `confidence=medium`. ADR-0013 documents
+  the deliberate trade-off (precision ceiling drops from
+  full-semantic `high` to FQN-resolved `medium`, in exchange for
+  zero external toolchain — no scip-java, no JVM build needed).
+* Spring annotation extraction: type / method `@Annotation` nodes
+  land on `Symbol.annotations`; the indexer combines class-level
+  `@RequestMapping` prefix with method verb mappings
+  (`@GetMapping` / `@PostMapping` / …) and writes `http_route`
+  metadata so the existing `http_route` bridge auto-mints route
+  intermediates.
+
+### `codemap-vue` extends
+
+* Captures `axios.<verb>(...)` / `this.$axios.<verb>(...)` /
+  `fetch(...)` invocations inside script blocks, attaching
+  `{method, url, confidence}` records to the enclosing
+  function/method symbol's `extra["http_calls"]`. The existing
+  `http_route` bridge now connects Vue clients to Spring routes
+  automatically.
+
+### `codemap enrich` CLI (new)
+
+```bash
+codemap enrich --backend openai     --model gpt-4o-mini
+codemap enrich --backend anthropic  --model claude-sonnet-4-5
+codemap enrich --backend ollama     --model llama3
+codemap enrich --base-url http://my-proxy/v1 --api-key sk-…
+```
+
+Reads `.codemap/`, calls the configured LLM for each
+function/method symbol, writes overlay YAML files under
+`.ai-memory/enrichment/`. Env-var fallback chain:
+`CODEMAP_LLM_API_KEY` → `ANTHROPIC_API_KEY` → `OPENAI_API_KEY`;
+`CODEMAP_LLM_BASE_URL` → `OPENAI_BASE_URL` → `ANTHROPIC_BASE_URL`.
+The next `codemap index` merges the overlay into
+`entities/functions.yml`. `--dry-run` reports without calling.
+
+### Default prune dirs
+
+`DEFAULT_PRUNE_DIRS` now includes `target` (Maven) and `out`
+(Gradle IDE default) so Java/Kotlin/Scala projects don't double-
+index build output trees.
+
+### New import-linter contract
+
+`emitters may not import cli/mcp/io` keeps the new emitter layer
+honest to the same dependency rules as indexers and bridges.
+
 ## [0.2.2] — 2026-06-05
 
 Lockstep version-only bump across all **18 packages** to keep the

@@ -102,6 +102,36 @@ config_cmd.register(app)
 diagnostics_cmd.register(app)
 
 
+def _load_plugin_subcommands() -> None:
+    """Discover and register CLI subcommands shipped by installed plugins.
+
+    Each plugin advertises a ``register(app)`` callable through the
+    ``codemap.cli_commands`` entry-point group (introduced in 0.3.0,
+    motivated by ``codemap-aimemory`` wanting to ship ``codemap enrich``
+    without core knowing the plugin exists). Bad plugins fail silently —
+    surface them via ``codemap doctor`` instead, never crash the CLI on
+    import side effects.
+    """
+    import importlib.metadata
+    import logging
+
+    logger = logging.getLogger(__name__)
+    for ep in importlib.metadata.entry_points(group="codemap.cli_commands"):
+        try:
+            register = ep.load()
+        except Exception:  # pragma: no cover - bad plugin
+            logger.exception("failed to load CLI subcommand entry-point %s", ep.name)
+            continue
+        try:
+            register(app)
+        except Exception:  # pragma: no cover - bad plugin
+            logger.exception("CLI subcommand %s register(app) crashed", ep.name)
+            continue
+
+
+_load_plugin_subcommands()
+
+
 _ISSUE_TRACKER = "https://github.com/qxbyte/codemap/issues"
 _TRACEBACK_ENV_VAR = "CODEMAP_FULL_TRACEBACK"
 

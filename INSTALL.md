@@ -2,9 +2,11 @@
 
 **English** · [简体中文](./INSTALL.zh-CN.md)
 
-> As of **0.1.0** (2026-06-03), CodeMap is published to PyPI under the
-> distribution names `codemap-core` (main) and `codemap-<lang>` (14
-> language plugins). The instructions below use PyPI as the primary
+> As of **0.3.0** (2026-06-25), CodeMap is published to PyPI under the
+> distribution names `codemap-core` (main), `codemap-<lang>` (17
+> language plugins), and `codemap-mybatis` / `codemap-aimemory` (new
+> in 0.3.0 — framework awareness + four-layer memory model L1 output).
+> The instructions below use PyPI as the primary
 > install source; the [Install from git](#28-install-from-git-track-main-pin-to-a-commit)
 > section retains the older `git+https://…` form for users who need to
 > track `main` or pin to a specific commit. The
@@ -222,6 +224,13 @@ auto-discovered via `entry_points` — no configuration files to edit.
 | C# | `plugins/codemap-csharp` | `*.cs`, `*.csx` | `tree-sitter-c-sharp` |
 | Scala | `plugins/codemap-scala` | `*.scala`, `*.sc` | `tree-sitter-scala` |
 
+### 4.1b Framework / output plugins (new in 0.3.0)
+
+| Purpose | Distribution | What it adds |
+|---|---|---|
+| MyBatis Mapper XML | `codemap-mybatis` | Parses `*Mapper.xml`, emits `sql_mapping` symbols + `table` symbols + `accesses_table` edges (DML side); a `MyBatisLinkBridge` produces `maps_to` edges from Java Mapper interface methods to their backing XML statements. Requires `codemap-java` to resolve the Java side. |
+| `.ai-memory/` emitter | `codemap-aimemory` | Emits the four-layer memory model's L1 layout (`entities/*.yml` + `relations/*.yml`) so AI agents can consume the index directly. Includes an optional `enrich()` overlay that calls an injected `LlmClient` to fill `business_meaning` / `related_rules` — entirely opt-in, the core index never depends on an LLM. Install with `[llm]` extra to pull `anthropic` for the SDK shape. |
+
 ### 4.2 With `pipx inject` (recommended)
 
 `pipx inject` puts the plugin into the same isolated environment as
@@ -235,6 +244,9 @@ pipx inject codemap codemap-typescript codemap-javascript codemap-vue \
                     codemap-ruby codemap-php codemap-sql \
                     codemap-bash codemap-c codemap-cpp \
                     codemap-csharp codemap-scala
+
+# Framework awareness + .ai-memory output (new in 0.3.0, opt-in)
+pipx inject codemap codemap-mybatis codemap-aimemory
 
 # Or one at a time
 pipx inject codemap codemap-typescript
