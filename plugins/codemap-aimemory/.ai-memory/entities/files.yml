@@ -1,0 +1,14 @@
+- id: file-0
+  path: src/codemap_aimemory/__init__.py
+- id: file-1
+  path: src/codemap_aimemory/emitter.py
+- id: file-2
+  path: src/codemap_aimemory/enrich.py
+- id: file-3
+  path: src/codemap_aimemory/ids.py
+- id: file-4
+  path: tests/test_emitter.py
+- id: file-5
+  path: tests/test_enrich.py
+- id: file-6
+  path: tests/test_ids.py

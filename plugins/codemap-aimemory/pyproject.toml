@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codemap-aimemory"
+version = "0.1.0"
+description = "Emit the four-layer memory model's L1 (.ai-memory/) from a CodeMap index"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "CodeMap Contributors" }]
+keywords = ["codemap", "ai-memory", "emitter"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development",
+]
+dependencies = [
+    "codemap-core>=0.2.0,<0.3",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+llm = ["anthropic>=0.39"]
+
+[project.entry-points."codemap.emitters"]
+ai-memory = "codemap_aimemory.emitter:AiMemoryEmitter"
+
+[project.urls]
+Homepage = "https://github.com/qxbyte/codemap"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codemap_aimemory"]
