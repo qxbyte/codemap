@@ -9,9 +9,89 @@ CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI A
 路由映射与跨文件关联。索引过程是静态的、快速的、可复现的 —— **索引
 路径上不依赖任何 LLM**。
 
-**状态**:0.3.0 稳定版。已发布到 PyPI,主包名 `codemap-core`,
+**状态**:0.3.1 稳定版。已发布到 PyPI,主包名 `codemap-core`,
 另含 17 个 `codemap-<lang>` 语言插件 + 2 个框架/输出插件
-(`codemap-mybatis`、`codemap-aimemory`,0.3.0 新增)。
+(`codemap-mybatis`、`codemap-aimemory`,0.3.0 新增;
+0.3.1 加 `codemap llm config` CLI 与国产模型 endpoint 速查)。
+
+## 产物说明
+
+`codemap index` 在项目根写两个并列目录:
+
+```
+<project>/
+├── .codemap/        ← 确定性索引(被 `codemap …` 命令查询)
+└── .ai-memory/      ← 四层记忆模型 L1 输出(被 AI Agent 直接消费)
+```
+
+### `.codemap/` — 7 个 JSON 文件
+
+| 文件 | 内容 |
+|---|---|
+| `symbols.json` | 所有符号,按 `SymbolID` 索引。含 `kind / language / file / range / signature / annotations / confidence / extra`(语言相关字段:`pending_calls / http_route / supertypes / imports / params / return_type / change_count_90d / …`)|
+| `edges.json` | 有向关系:`calls / extends / implements / overrides / references / routes_to / maps_to / imports / accesses_table`,每条带 `confidence` ∈ {`high`, `medium`, `low`} |
+| `routes.json` | 由 `http_route` bridge 从 `extra["http_route"]` 铸造的 HTTP 路由 |
+| `aliases.json` | 中间符号 ↔ 真实符号的映射(如 route → handler) |
+| `manifest.json` | 项目元数据 + 索引器/桥接器版本 + 文件 sha256/mtime |
+| `diagnostics.json` | 索引期收集的 warning / error |
+| `.lock` | 进程间写锁;勿动 |
+
+### `.ai-memory/` — 6 个 YAML 文件(由 `codemap-aimemory` 产出)
+
+AI Agent 直接读这个目录。稳定的 `entity_id`(`fn-* / cls-* / tbl-*`)从 SCIP `SymbolID` 派生。
+
+```
+.ai-memory/
+├── entities/
+│   ├── functions.yml      含 calls / called_by / related_tables / signature /
+│   │                      line_range / confidence / change_count_90d /
+│   │                      business_meaning
+│   ├── tables.yml         tbl-* 表实体
+│   └── files.yml          file-* 文件条目
+├── relations/
+│   ├── call-graph.yml      `{from, to, type=calls, confidence}`
+│   ├── table-relations.yml `{from, to, type=accesses_table, confidence}`
+│   └── rule-constraints.yml 空占位符(由 L2 维护)
+└── enrichment/             可选:LLM 生成的解释
+    └── <sha1[:12]>.yml     `{symbol_id, business_meaning, related_rules,
+                              confidence:"llm", source_model, generated_at}`
+```
+
+两跳展开:Java 方法 `maps_to` 一个 `sql_mapping`,后者 `accesses_table` 某张表 → 该表自动出现在方法的 `related_tables` 中。所以 `fn-selectByUser.related_tables = [tbl-sf_coupon]` 不需要 Agent 自己走链。
+
+## LLM 配置(可选)
+
+核心索引**永远不调 LLM**——`codemap index` 不会触达任何 API。只有 `codemap-aimemory` 的 `codemap enrich` 命令会写 `enrichment/` 覆盖层,且**必须你主动调用**。api-key 的存在 = LLM 开关本身:没配 key 时 `codemap enrich` 直接报错退出,不会偷偷调 LLM 烧 quota。
+
+三种配置方式,**第一个非空优先**:
+
+1. **CLI flag** — `--api-key`、`--base-url`、`--model`、`--backend`
+2. **环境变量** — `CODEMAP_LLM_API_KEY`(回退 `ANTHROPIC_API_KEY`、`OPENAI_API_KEY`);`CODEMAP_LLM_BASE_URL`(回退 `OPENAI_BASE_URL`、`ANTHROPIC_BASE_URL`);`CODEMAP_LLM_MODEL`;`CODEMAP_LLM_BACKEND`
+3. **持久化文件配置** — `~/.config/codemap/llm.yaml`(由 `codemap llm config set/unset/show` 管理,写入 `chmod 600`)
+4. 内置默认 — backend `openai`,model `gpt-4o-mini`
+
+### 常见国产/开源大模型 endpoint(都用 `--backend openai`)
+
+| 厂商 | 模型示例 | Base URL |
+|---|---|---|
+| OpenAI | `gpt-4o-mini` | `https://api.openai.com/v1` *(默认)* |
+| DeepSeek | `deepseek-chat` | `https://api.deepseek.com/v1` |
+| 智谱 GLM | `glm-4-flash` | `https://open.bigmodel.cn/api/paas/v4/` |
+| MiniMax | `abab6.5s-chat` | `https://api.minimax.chat/v1` |
+| 月之暗面 Kimi | `moonshot-v1-8k` | `https://api.moonshot.cn/v1` |
+| 阿里通义 | `qwen-plus` | `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| 小米 MiMo | `mimo-large` | *(以厂商文档为准;走 OpenAI 兼容协议)* |
+| Ollama(本地) | `llama3` | `http://localhost:11434/v1` — 用 `--backend ollama`(不需要 key)|
+| Anthropic 原生 | `claude-sonnet-4-5` | *(用 `--backend anthropic`;需 `pip install codemap-aimemory[llm]` 装 SDK)* |
+
+DeepSeek 示例:
+
+```bash
+codemap llm config set base-url https://api.deepseek.com/v1
+codemap llm config set api-key sk-xxx
+codemap llm config set model deepseek-chat
+codemap enrich .
+```
 
 > 👉 **想直接动手?** [`INSTALL.zh-CN.md`](./INSTALL.zh-CN.md) 是完整
 > 安装指南 —— 覆盖 `pipx` / `uv tool` / `pip` 三种装法、语言插件注入、

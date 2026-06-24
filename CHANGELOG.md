@@ -8,6 +8,50 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-06-25
+
+Quick follow-up to 0.3.0. Lockstep version-only bump across all **20
+packages** to keep the family in sync; the only source change is in
+`codemap-aimemory`.
+
+### `codemap-aimemory` — LLM CLI configuration
+
+* New subcommand group **`codemap llm config`** (registered through the
+  `codemap.cli_commands` entry-point group introduced in 0.3.0):
+  * `codemap llm config set api-key <key>` — persist to
+    `~/.config/codemap/llm.yaml` (or `$XDG_CONFIG_HOME/codemap/llm.yaml`),
+    written `chmod 600` because it carries a credential.
+  * `codemap llm config set base-url <url>` / `model` / `backend`.
+  * `codemap llm config unset <key>` — clear one field; the on-disk
+    file only contains non-`None` values.
+  * `codemap llm config show` — print the effective config with one of
+    `[env]` / `[file]` / `[default]` annotated per field; API keys are
+    masked.
+  * `codemap llm config path` — print the config file location.
+* `codemap enrich` resolution order is now (first non-empty wins):
+  CLI flag → env var → file config (new in 0.3.1) → built-in defaults.
+* Behavioural reminder: **API key is the LLM on/off switch.**
+  `codemap index` never calls any LLM; `codemap enrich` without a key
+  errors out cleanly, never silently. No background LLM traffic.
+
+### Documentation
+
+* README + README.zh-CN: new "Output formats" section documenting every
+  file under `.codemap/` and `.ai-memory/` (kind, shape, who consumes it).
+* README + README.zh-CN: new "LLM configuration" section with the
+  three-source resolution order and a Chinese / open-source LLM endpoint
+  cheatsheet (DeepSeek, GLM, MiniMax, Kimi, Qwen, MiMo, Ollama, native
+  Anthropic) — all use `--backend openai` with their own `base-url`.
+* INSTALL: bump heading and mention the new CLI.
+
+### Plugin tests
+
+19 new unit tests in `codemap-aimemory` covering: XDG path resolution,
+load / save / unset round-trip, `chmod 600` on save, corrupt-YAML
+graceful fallback, dash-vs-underscore key aliasing, CLI set / show /
+unset / path, source-annotation correctness in `show`. Plugin test
+total: 38 → 57. Other plugins unchanged.
+
 ## [0.3.0] — 2026-06-25
 
 The four-layer-memory-model L1 release. The plugin family grows from
