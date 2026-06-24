@@ -2,10 +2,12 @@
 
 **English** · [简体中文](./INSTALL.zh-CN.md)
 
-> As of **0.3.0** (2026-06-25), CodeMap is published to PyPI under the
+> As of **0.3.1** (2026-06-25), CodeMap is published to PyPI under the
 > distribution names `codemap-core` (main), `codemap-<lang>` (17
 > language plugins), and `codemap-mybatis` / `codemap-aimemory` (new
 > in 0.3.0 — framework awareness + four-layer memory model L1 output).
+> 0.3.1 adds the `codemap llm config` CLI for persisting LLM api-key /
+> base-url, plus a docs section on Chinese / open-source LLM endpoints.
 > The instructions below use PyPI as the primary
 > install source; the [Install from git](#28-install-from-git-track-main-pin-to-a-commit)
 > section retains the older `git+https://…` form for users who need to

@@ -9,7 +9,8 @@ only writes the optional ``.ai-memory/enrichment/<sha1>.yml`` overlay files.
 The next time the emitter runs (next ``codemap index``), it merges them into
 ``entities/functions.yml`` keyed by ``symbol_id``.
 
-Configuration sources (in priority order, first wins):
+Configuration sources (in priority order, first wins; 0.3.1 added file
+config):
 
 1. CLI flags: ``--api-key``, ``--base-url``, ``--model``, ``--backend``
 2. Environment variables:
@@ -19,7 +20,10 @@ Configuration sources (in priority order, first wins):
      ``ANTHROPIC_BASE_URL``)
    * ``CODEMAP_LLM_MODEL``
    * ``CODEMAP_LLM_BACKEND``
-3. Built-in defaults (model: ``gpt-4o-mini``; backend: ``openai``).
+3. Persistent file config: ``~/.config/codemap/llm.yaml`` (or
+   ``$XDG_CONFIG_HOME/codemap/llm.yaml``). Manage with
+   ``codemap llm config set/show/unset``.
+4. Built-in defaults (model: ``gpt-4o-mini``; backend: ``openai``).
 """
 
 from __future__ import annotations
@@ -30,6 +34,7 @@ from typing import Annotated
 
 import typer
 
+from codemap_aimemory.config import load as load_llm_config
 from codemap_aimemory.enrich import enrich
 from codemap_aimemory.llm import build_client, env_default
 
@@ -54,25 +59,28 @@ def register(app: typer.Typer) -> None:
             typer.Option(
                 "--backend",
                 envvar="CODEMAP_LLM_BACKEND",
-                help="LLM backend: ``openai`` (default, any OpenAI-compatible "
-                "endpoint), ``anthropic`` (native SDK), or ``ollama``.",
+                help="LLM backend: ``openai`` (any OpenAI-compatible "
+                "endpoint), ``anthropic`` (native SDK), or ``ollama``. "
+                "Falls back to ~/.config/codemap/llm.yaml or `openai`.",
             ),
-        ] = "openai",
+        ] = "",
         model: Annotated[
             str,
             typer.Option(
                 "--model",
                 envvar="CODEMAP_LLM_MODEL",
-                help="Model name passed verbatim to the backend.",
+                help="Model name passed verbatim to the backend. Falls "
+                "back to ~/.config/codemap/llm.yaml or `gpt-4o-mini`.",
             ),
-        ] = "gpt-4o-mini",
+        ] = "",
         api_key: Annotated[
             str,
             typer.Option(
                 "--api-key",
                 envvar="CODEMAP_LLM_API_KEY",
                 help="API key (also picked up from CODEMAP_LLM_API_KEY, "
-                "ANTHROPIC_API_KEY, or OPENAI_API_KEY).",
+                "ANTHROPIC_API_KEY, OPENAI_API_KEY, or "
+                "~/.config/codemap/llm.yaml).",
             ),
         ] = "",
         base_url: Annotated[
@@ -80,8 +88,9 @@ def register(app: typer.Typer) -> None:
             typer.Option(
                 "--base-url",
                 envvar="CODEMAP_LLM_BASE_URL",
-                help="Override the LLM API base URL (e.g. a self-hosted "
-                "OpenAI-compatible endpoint).",
+                help="Override the LLM API base URL (also picked up from "
+                "CODEMAP_LLM_BASE_URL, OPENAI_BASE_URL, ANTHROPIC_BASE_URL, "
+                "or ~/.config/codemap/llm.yaml).",
             ),
         ] = "",
         changed_only: Annotated[
@@ -110,12 +119,21 @@ def register(app: typer.Typer) -> None:
             )
             raise typer.Exit(code=2)
 
-        # Resolve credentials with env fallbacks beyond what envvar= covers.
-        resolved_key = api_key or env_default(
-            "CODEMAP_LLM_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"
+        # Resolution order: CLI flag (already in `backend`/`model`/etc when
+        # truthy thanks to typer envvar= handling) > env extras (api-key
+        # aliases not covered by envvar=) > persistent file config > defaults.
+        file_cfg = load_llm_config()
+        resolved_backend = backend or file_cfg.backend or "openai"
+        resolved_model = model or file_cfg.model or "gpt-4o-mini"
+        resolved_key = (
+            api_key
+            or env_default("CODEMAP_LLM_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY")
+            or file_cfg.api_key
         )
-        resolved_base = base_url or env_default(
-            "CODEMAP_LLM_BASE_URL", "OPENAI_BASE_URL", "ANTHROPIC_BASE_URL"
+        resolved_base = (
+            base_url
+            or env_default("CODEMAP_LLM_BASE_URL", "OPENAI_BASE_URL", "ANTHROPIC_BASE_URL")
+            or file_cfg.base_url
         )
 
         out_dir = path / ".ai-memory"
@@ -125,22 +143,23 @@ def register(app: typer.Typer) -> None:
                 fn_count = sum(1 for s in store.iter_symbols() if s.kind in {"method", "function"})
             typer.echo(
                 f"Would enrich {fn_count} function/method symbols using "
-                f"{backend}/{model}.\nOutput dir: {out_dir / 'enrichment'}"
+                f"{resolved_backend}/{resolved_model}.\nOutput dir: {out_dir / 'enrichment'}"
             )
             return
 
-        if backend != "ollama" and not resolved_key:
+        if resolved_backend != "ollama" and not resolved_key:
             typer.echo(
-                "Error: API key is required for non-Ollama backends. Set "
-                "--api-key or CODEMAP_LLM_API_KEY / OPENAI_API_KEY / "
-                "ANTHROPIC_API_KEY.",
+                "Error: API key is required for non-Ollama backends. Configure "
+                "with one of: `codemap llm config set api-key <key>`, "
+                "--api-key, or env vars (CODEMAP_LLM_API_KEY / "
+                "ANTHROPIC_API_KEY / OPENAI_API_KEY).",
                 err=True,
             )
             raise typer.Exit(code=2)
 
         client = build_client(
-            backend=backend,
-            model=model,
+            backend=resolved_backend,
+            model=resolved_model,
             api_key=resolved_key or "",
             base_url=resolved_base,
         )
