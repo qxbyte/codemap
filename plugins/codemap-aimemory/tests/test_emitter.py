@@ -79,6 +79,7 @@ def _emit(tmp_path: Path) -> Path:
 def test_emits_all_expected_files(tmp_path: Path) -> None:
     out = _emit(tmp_path)
     expected = [
+        "project.yml",
         "entities/functions.yml",
         "entities/tables.yml",
         "entities/files.yml",
@@ -88,6 +89,19 @@ def test_emits_all_expected_files(tmp_path: Path) -> None:
     ]
     for rel in expected:
         assert (out / rel).is_file(), f"missing {rel}"
+
+
+def test_project_yml_contains_l0_meta(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\nversion = "0.1.0"\ndependencies = ["typer>=0.12"]\n'
+    )
+    out = _emit(tmp_path)
+    meta = yaml.safe_load((out / "project.yml").read_text())
+    assert meta["schema_version"] == "1.0"
+    assert meta["root"] == str(tmp_path)
+    assert meta["tech_stack"]["primary_language"] == "python"
+    assert "pyproject.toml" in meta["tech_stack"]["manifests"]
+    assert "typer>=0.12" in meta["dependencies"]["runtime"]
 
 
 def test_functions_yml_carries_metadata(tmp_path: Path) -> None:

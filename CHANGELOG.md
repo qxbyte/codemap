@@ -8,6 +8,34 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-06-25
+
+Lockstep version-only bump across all **20 packages** to keep the family
+in sync; the only source change is in `codemap-aimemory`.
+
+### `codemap-aimemory` — L0 project meta emitter (P0-3)
+
+* New module `codemap_aimemory.project_meta` with a pure collector
+  `build_project_meta(project_root)` that returns a YAML-safe dict:
+  `schema_version`, `generated_at`, `root`, `tech_stack`
+  (`primary_language` + `manifests`), `languages` (file-extension
+  counts), `dependencies` (`runtime` + `dev`), `git`
+  (`remote` / `branch` / `head`), `top_dirs`, `configs`.
+* `AiMemoryEmitter` now writes **`.ai-memory/project.yml`** alongside the
+  existing `entities/` and `relations/` outputs — this is the L0 sheet
+  of the four-layer memory model (per the AI-Enterprise-Delivery-System
+  knowledge-base design). Deterministic, no LLM, runs every
+  `codemap index`.
+* Manifest detection covers `pyproject.toml` / `setup.py` /
+  `requirements.txt` / `package.json` / `pom.xml` / `build.gradle{,.kts}`
+  / `Cargo.toml` / `go.mod` / `Gemfile`. Node primary-language picks
+  `vue` / `typescript` / `javascript` from observed file extensions.
+* Language scan walks the tree but skips `.git` / `.venv` /
+  `node_modules` / `dist` / `build` / `target` / `__pycache__` and the
+  usual hidden caches so dependency vendoring doesn't pollute counts.
+* Git block is best-effort via `git config`/`rev-parse`; if
+  `project_root/.git` is absent the block is empty (`{}`) — no crash.
+
 ## [0.3.1] — 2026-06-25
 
 Quick follow-up to 0.3.0. Lockstep version-only bump across all **20

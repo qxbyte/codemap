@@ -1,9 +1,10 @@
-"""AiMemoryEmitter — write the four-layer memory model's L1 layout atomically.
+"""AiMemoryEmitter — write the four-layer memory model's L0+L1 layout atomically.
 
 Reads a :class:`codemap.core.store.ReadOnlyStore` and emits, under
 ``<output_dir>/.ai-memory/`` (or the explicit ``output_dir`` if it already
 ends in ``.ai-memory``):
 
+* ``project.yml``             — L0 project meta (tech stack, deps, git)
 * ``entities/functions.yml``  — fn-/cls- entities with calls/called_by/
   related_tables, signature, line_range, change_count_90d, confidence
 * ``entities/tables.yml``     — tbl- entities
@@ -37,6 +38,7 @@ from codemap.core.store import ReadOnlyStore
 from codemap.emitters.base import EmitContext, EmitResult
 from codemap_aimemory.enrich import load_enrichment
 from codemap_aimemory.ids import build_entity_ids
+from codemap_aimemory.project_meta import build_project_meta
 
 _FN_KINDS = frozenset({"method", "function"})
 _CLS_KINDS = frozenset({"class", "interface"})
@@ -145,7 +147,8 @@ class AiMemoryEmitter:
         files = sorted({str(s.file) for s in symbols})
         files_yml = [{"id": f"file-{i}", "path": p} for i, p in enumerate(files)]
 
-        outputs: dict[str, list[Any]] = {
+        outputs: dict[str, Any] = {
+            "project.yml": build_project_meta(ctx.project_root),
             "entities/functions.yml": functions,
             "entities/tables.yml": tables,
             "entities/files.yml": files_yml,
@@ -165,7 +168,7 @@ def _resolve_out_dir(out_dir: Path) -> Path:
     return out_dir / ".ai-memory"
 
 
-def _atomic_write_tree(out_dir: Path, outputs: dict[str, list[Any]]) -> list[str]:
+def _atomic_write_tree(out_dir: Path, outputs: dict[str, Any]) -> list[str]:
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
     for rel, data in outputs.items():
