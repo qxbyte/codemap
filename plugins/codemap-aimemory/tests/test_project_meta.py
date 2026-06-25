@@ -143,6 +143,76 @@ def test_git_block_empty_when_not_a_repo(tmp_path: Path) -> None:
     assert meta["git"] == {}
 
 
+def test_git_resolves_head_via_packed_refs(tmp_path: Path) -> None:
+    """``git gc`` packs loose refs; the loose file under refs/heads/ is gone
+    and ``packed-refs`` carries the sha. Reader must follow that fallback."""
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    (tmp_path / "x.txt").write_text("hi")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"],
+        cwd=tmp_path,
+        check=True,
+    )
+    subprocess.run(["git", "pack-refs", "--all"], cwd=tmp_path, check=True)
+    loose = tmp_path / ".git" / "refs" / "heads" / "main"
+    assert not loose.exists(), "pack-refs should have removed the loose ref"
+
+    meta = build_project_meta(tmp_path)
+
+    assert meta["git"]["branch"] == "main"
+    assert len(meta["git"]["head"]) == 40
+
+
+def test_git_detached_head_records_sha_without_branch(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    (tmp_path / "x.txt").write_text("hi")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"],
+        cwd=tmp_path,
+        check=True,
+    )
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=tmp_path, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    subprocess.run(["git", "checkout", "-q", "--detach", head], cwd=tmp_path, check=True)
+
+    meta = build_project_meta(tmp_path)
+
+    assert meta["git"]["head"] == head
+    assert "branch" not in meta["git"]
+
+
+def test_git_uses_zero_subprocesses_in_normal_repo(tmp_path: Path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Performance guard: emitter runs on every ``codemap index``; spawning
+    three ``git`` subprocesses here costs ~30 ms each — the 0.3.2 bench
+    regression that prompted this rewrite. Worktrees still fall back to
+    subprocess."""
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    (tmp_path / "x.txt").write_text("hi")
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"],
+        cwd=tmp_path,
+        check=True,
+    )
+
+    from codemap_aimemory import project_meta as pm
+
+    calls: list[list[str]] = []
+
+    def fake_run(*args, **kwargs):  # type: ignore[no-untyped-def]
+        calls.append(list(args[0]))
+        raise AssertionError("subprocess should not be invoked for normal git repos")
+
+    monkeypatch.setattr(pm.subprocess, "run", fake_run)
+
+    meta = build_project_meta(tmp_path)
+    assert meta["git"]["branch"] == "main"
+    assert calls == []
+
+
 def test_language_breakdown_counts_known_extensions(tmp_path: Path) -> None:
     (tmp_path / "a.py").write_text("x=1")
     (tmp_path / "b.py").write_text("y=2")

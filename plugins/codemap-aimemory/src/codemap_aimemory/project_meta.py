@@ -207,16 +207,24 @@ def _detect_primary_language(manifests: list[str], languages: dict[str, int]) ->
 
 
 def _count_languages(root: Path) -> dict[str, int]:
+    """Walk the tree and tally files by extension.
+
+    Hot path on every ``codemap index``: avoid per-file ``Path()`` construction
+    and ``.suffix`` (which itself parses the path) — a quick ``rfind`` is
+    several times faster on a 1000-file codebase.
+    """
     counts: dict[str, int] = {}
-    for dirpath, dirnames, filenames in os.walk(root):
+    ext_map = _EXT_MAP  # local alias — fewer global lookups in the loop
+    for _, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if not _is_ignored_dir(d)]
         for fname in filenames:
-            ext = Path(fname).suffix.lower()
-            lang = _EXT_MAP.get(ext)
+            dot = fname.rfind(".")
+            if dot <= 0:
+                continue
+            ext = fname[dot:].lower()
+            lang = ext_map.get(ext)
             if lang:
                 counts[lang] = counts.get(lang, 0) + 1
-        # don't waste time hashing dirpath here; just continue
-        _ = dirpath
     return counts
 
 
@@ -276,12 +284,95 @@ def _parse_package_json(path: Path) -> tuple[list[str], list[str]]:
 
 
 def _git_meta(root: Path) -> dict[str, str]:
-    if not (root / ".git").exists():
+    """Extract branch / head / remote without shelling out to git.
+
+    ``codemap index`` runs the emitter on every invocation, so spawning
+    three ``git`` subprocesses (~30 ms each on macOS) here adds up. We
+    read ``.git/HEAD`` + the referenced ref + ``.git/config`` directly;
+    worktrees (``.git`` is a file) and other oddities fall back to
+    ``git`` subprocesses where correctness matters more than speed.
+    """
+    git_dir = root / ".git"
+    if not git_dir.exists():
         return {}
+    if not git_dir.is_dir():
+        # Worktree: .git is a file pointing at the real gitdir. Fall back
+        # to subprocess; resolving worktree layout by hand is error-prone.
+        return _git_meta_subprocess(root)
+    return _git_meta_fs(git_dir)
+
+
+def _git_meta_fs(git_dir: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
+
+    head_file = git_dir / "HEAD"
+    if head_file.is_file():
+        try:
+            head_content = head_file.read_text(encoding="utf-8").strip()
+        except OSError:
+            head_content = ""
+        if head_content.startswith("ref: "):
+            ref = head_content[5:].strip()
+            out["branch"] = ref.rsplit("/", 1)[-1] if "/" in ref else ref
+            sha = _resolve_ref(git_dir, ref)
+            if sha:
+                out["head"] = sha
+        elif len(head_content) == 40 and all(c in "0123456789abcdef" for c in head_content):
+            out["head"] = head_content  # detached HEAD
+
+    config_file = git_dir / "config"
+    if config_file.is_file():
+        try:
+            remote = _parse_remote_origin_url(config_file.read_text(encoding="utf-8"))
+        except OSError:
+            remote = ""
+        if remote:
+            out["remote"] = remote
+
+    return out
+
+
+def _resolve_ref(git_dir: Path, ref: str) -> str:
+    loose = git_dir / ref
+    if loose.is_file():
+        try:
+            return loose.read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+    packed = git_dir / "packed-refs"
+    if packed.is_file():
+        try:
+            for raw_line in packed.read_text(encoding="utf-8").splitlines():
+                line = raw_line.rstrip()
+                if not line or line.startswith(("#", "^")):
+                    continue
+                parts = line.split(" ", 1)
+                if len(parts) == 2 and parts[1] == ref:
+                    return parts[0]
+        except OSError:
+            return ""
+    return ""
+
+
+def _parse_remote_origin_url(config_text: str) -> str:
+    in_origin = False
+    for raw_line in config_text.splitlines():
+        line = raw_line.strip()
+        if line.startswith("["):
+            in_origin = line.replace(" ", "").replace('"', "") == "[remoteorigin]"
+            continue
+        if in_origin and line.startswith("url"):
+            parts = line.split("=", 1)
+            if len(parts) == 2:
+                return parts[1].strip()
+    return ""
+
+
+def _git_meta_subprocess(root: Path) -> dict[str, str]:
+    out: dict[str, str] = {}
     remote = _git_cmd(root, ["config", "--get", "remote.origin.url"])
     branch = _git_cmd(root, ["rev-parse", "--abbrev-ref", "HEAD"])
     head = _git_cmd(root, ["rev-parse", "HEAD"])
-    out: dict[str, str] = {}
     if remote:
         out["remote"] = remote
     if branch:
