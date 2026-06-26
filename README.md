@@ -255,6 +255,10 @@ codemap routes                          # HTTP routes from the http_route bridge
 codemap recall '<query>'                                 # default top-k 5, yaml output
 codemap recall '<query>' -p /abs/project -k 10 -o json   # explicit project + json
 codemap recall '<query>' -t rules,pitfalls               # filter categories
+codemap recall --from-spec requirements.md               # 0.3.6+: use spec file as query
+codemap recall '<query>' --with-content                  # 0.4.0+: include rule/pit/case core fields
+# Every result also carries `freshness_score`/`ranked_score`/`stale` since 0.4.0;
+# fresher hits outrank stale ones at the same token score (180-day half-life + code-churn decay).
 
 # Machine-readable output: all commands take --json
 codemap --json callers '<symbol-id>'

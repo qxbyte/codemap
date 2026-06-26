@@ -323,7 +323,7 @@ pattern):
 
 | Plugin | Min version | Writes to `<project_root>/` | When |
 |---|---|---|---|
-| `specode` | **3.0.0** | (only via specode-distill sub-skill below) | drives the spec lifecycle |
+| `specode` | **3.1.0** | (only via specode-distill sub-skill below) | drives the spec lifecycle; requires codemap-aimemory 0.4.0+ for step-2.2 content injection (degrades gracefully) |
 | └─ `specode-distill` | (sub-skill of specode 3.0) | `.ai-memory/knowledge/{rules,business,modules,cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin) | user runs `/specode:specode-distill <slug>`, or accepts the prompt at end of specode's acceptance phase |
 | `task-swarm` | **0.6.0** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin) | every successful `task_swarm.py resolve` |
 | `superpowers` | any | — (no `.ai-memory/` writes) | brainstorming / writing-plans skills called by specode |
@@ -377,12 +377,16 @@ codemap callees '<symbol-id>'         # what does this call
 codemap trace --from '<id>' --depth 5
 codemap routes                        # all HTTP routes the http_route bridge found
 
-# Knowledge recall (requires codemap-aimemory plugin, 0.3.5+)
+# Knowledge recall (requires codemap-aimemory plugin, 0.3.5+; 0.4.0+ for --with-content)
 # Scans .ai-memory/knowledge/*.yml — written by specode-distill /
 # task-swarm if you've installed the pluginhub workflow (see §4.7).
-codemap recall '<query>'              # default top-k 5, yaml
+codemap recall '<query>'                   # default top-k 5, yaml
 codemap recall '<query>' -k 10 -o json
 codemap recall '<query>' -t rules,pitfalls
+codemap recall --from-spec requirements.md # 0.3.6+: spec file as query
+codemap recall '<query>' --with-content    # 0.4.0+: include rule/pit/case core fields
+# Each hit since 0.4.0 carries freshness_score / ranked_score / stale —
+# fresher knowledge outranks stale at the same token score.
 
 # Machine-readable output for AI agents
 codemap --json routes

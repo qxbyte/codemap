@@ -394,6 +394,10 @@ codemap routes                          # http_route 桥接器产出的路由
 codemap recall '<query>'                                # 默认 top-k 5,yaml 输出
 codemap recall '<query>' -p /abs/project -k 10 -o json  # 显式项目 + json
 codemap recall '<query>' -t rules,pitfalls              # 按类别过滤
+codemap recall --from-spec requirements.md              # 0.3.6+:用 spec 文件作为 query
+codemap recall '<query>' --with-content                 # 0.4.0+:返回每个 hit 含 rule/pit/case 核心字段
+# 0.4.0 起每个结果都带 `freshness_score`/`ranked_score`/`stale`;
+# 同 token score 时 fresh hit 排在 stale 前面(180 天半衰期 + 代码 churn 衰减)。
 
 # 机器可读输出:所有命令都支持 --json
 codemap --json callers '<symbol-id>'

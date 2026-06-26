@@ -292,7 +292,7 @@ Code 为例;Codex / Copilot CLI 同理):
 
 | 插件 | 最低版本 | 写入 `<project_root>/` | 触发时机 |
 |---|---|---|---|
-| `specode` | **3.0.0** | (仅通过下面的 specode-distill 子 skill) | 驱动 spec 全生命周期 |
+| `specode` | **3.1.0** | (仅通过下面的 specode-distill 子 skill) | 驱动 spec 全生命周期；step 2.2 内容注入需 codemap-aimemory 0.4.0+(无版本则降级为 wikilink 注入) |
 | └─ `specode-distill` | (specode 3.0 子 skill) | `.ai-memory/knowledge/{rules,business,modules,cases,pitfalls}/*.yml` + `knowledge-base/*.md`(双产) | 用户 `/specode:specode-distill <slug>`,或 specode acceptance 末尾选"是" |
 | `task-swarm` | **0.6.0** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md`(双产) | 每次 `task_swarm.py resolve` 成功收尾时自动 |
 | `superpowers` | 任意 | — (不写 `.ai-memory/`) | specode 调它的 brainstorming / writing-plans 等 skill |
@@ -345,12 +345,16 @@ codemap callees '<symbol-id>'         # 它调用了谁
 codemap trace --from '<id>' --depth 5
 codemap routes                        # http_route bridge 找到的所有 HTTP 路由
 
-# 知识检索(需要 codemap-aimemory 插件,0.3.5+)
+# 知识检索(需要 codemap-aimemory 插件,0.3.5+;0.4.0+ 才支持 --with-content)
 # 扫 .ai-memory/knowledge/*.yml——如果你装了 pluginhub 工作流
 # (见 §4.7),specode-distill / task-swarm 会写这些 yml。
-codemap recall '<query>'              # 默认 top-k 5,yaml
+codemap recall '<query>'                   # 默认 top-k 5,yaml
 codemap recall '<query>' -k 10 -o json
 codemap recall '<query>' -t rules,pitfalls
+codemap recall --from-spec requirements.md # 0.3.6+:用 spec 文件作为 query
+codemap recall '<query>' --with-content    # 0.4.0+:返回每个 hit 含核心字段
+# 0.4.0 起每个 hit 都带 freshness_score / ranked_score / stale,
+# fresh hit 在同 token score 时排在 stale 前面。
 
 # 喂给 AI agent 的结构化输出
 codemap --json routes
