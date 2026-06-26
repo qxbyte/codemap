@@ -8,6 +8,61 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-06-27
+
+Lockstep PATCH bump across all **20 packages**. The only source change
+is in `codemap-aimemory` — adds the **`codemap.recall_hooks`** entry-
+point group and RRF fusion in `codemap recall`, so external plugins
+(such as the upcoming `codemap-semantic-index`) can inject their own
+ranker without modifying `codemap-aimemory`. AI-EDS roadmap **P1-3**
+enablement.
+
+### `codemap-aimemory` — `codemap.recall_hooks` entry-point + RRF fusion
+
+* New constant `RECALL_HOOK_GROUP = "codemap.recall_hooks"` and tunable
+  `RRF_K = 60` exposed from `codemap_aimemory.recall`.
+* `recall()` now discovers any external plugin that registers an
+  `entry_points(group="codemap.recall_hooks")` callable, runs each one
+  alongside the existing token-overlap ranker, and merges all
+  rankings via **Reciprocal Rank Fusion** (k=60). Final
+  `ranked_score = rrf_score * freshness_score` so P4-2 freshness
+  behaviour is preserved end-to-end.
+* Hook contract: `hook(query, project_root, base_candidates) ->
+  Iterable[dict]`. Each returned dict MUST carry `knowledge_id`;
+  SHOULD carry the same shape as a token candidate (`type` /
+  `category` / `title` / `summary` / `file` / `freshness_score` /
+  `stale`). Token-side metadata wins for duplicate ids.
+* Hook-introduced candidates extend the result pool — embedding hits
+  that token recall missed surface naturally.
+* Each result dict gains two new fields **when at least one hook is
+  active**:
+  - `rrf_score`: raw fused score (before freshness multiply)
+  - `ranked_by`: sorted list of ranker names that scored this id
+    (e.g. `["semantic", "token"]`)
+* Back-compat: when no hooks are discovered, output is **identical to
+  0.4.0** — neither field is added, existing 26-test recall suite
+  passes unchanged.
+* Failure containment: a hook that raises / returns garbage / fails to
+  load gets a `UserWarning` and is skipped; recall never crashes
+  because of one bad hook.
+* 10 new tests in `test_recall_hooks.py` cover:
+  - discovery filtering (non-callable / load-failure skipped)
+  - back-compat (no hooks ⇒ no new fields)
+  - single hook adds rrf_score / ranked_by
+  - RRF math vs hand-computed expectations (overlapping + non-overlapping ids)
+  - candidate union with hook-introduced ids
+  - `ranked_score = rrf_score * freshness_score` preservation
+  - error containment (raising hook / non-iterable return)
+  - multi-hook (two hooks both contribute)
+* Aimemory plugin tests: 143 → **153**.
+
+### Why this matters
+
+This unlocks the P1-3 design (separate `codemap-semantic-index` plugin
+that ships its own embedding indexer + hook registration). codemap-core
+stays embedding-free; users opt in by `pipx inject codemap
+codemap-semantic-index` whenever they want semantic search.
+
 ## [0.4.0] — 2026-06-27
 
 Lockstep MINOR bump across all **20 packages**; the only source change
