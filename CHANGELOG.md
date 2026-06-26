@@ -8,6 +8,46 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.3.5] — 2026-06-26
+
+Lockstep version-only bump across all **20 packages**; the only source
+change is in `codemap-aimemory` — first half of the AI-Enterprise-
+Delivery-System roadmap **P3-1**: a CLI that downstream tools (specode)
+can call to recall relevant knowledge before drafting requirements.
+
+### `codemap-aimemory` — `codemap recall <query>` CLI (P3-1, half 1)
+
+* New module `codemap_aimemory.recall` with a pure scorer
+  `recall(query, project_root, top_k, types)` that scans
+  `<project_root>/.ai-memory/knowledge/{rules,business,modules,cases,
+  pitfalls}/*.yml` and ranks by token overlap with each yml's
+  searchable fields (title / tags / statement / related_code / fix /
+  symptom / …). Title hits weighted higher than body hits.
+* New `codemap_aimemory.recall_cli` registers the **`codemap recall`**
+  subcommand via the `codemap.cli_commands` entry-point (the same
+  group that hosts `enrich` and `llm`). Flags:
+  `--project/-p <abs>` (default cwd), `--top-k/-k N` (default 5),
+  `--types/-t rules,business,…` (category filter),
+  `--output/-o yaml|json` (default yaml).
+* Output carries `query`, parsed `tokens`, `matched_entities` (id-based
+  hits against `_global/entities.yml`), and `knowledge` rows
+  (`knowledge_id`, `type`, `category`, `title`, `summary`, `score`,
+  `file`).
+* Tokenizer is dependency-free: English/digit words ≥ 2 chars +
+  Chinese char-bigrams. Good enough for the few-word requirements
+  query; embeddings land in P1-3.
+* 18 new unit tests (`test_recall.py`) cover tokenizer edge cases
+  (English / Chinese / mixed / empty), ranking, top-k, type filter,
+  title-weight, related_code/symptom/fix matching, malformed yml,
+  matched_entities, and full output shape.
+
+### Roadmap pairing
+
+The companion change in `pluginhub` extends `specode`'s requirements
+phase to invoke `codemap recall` before writing `requirements.md` and
+inject the top hits into the "已知约束 / 历史坑" section — closing the
+P3-1 loop end-to-end.
+
 ## [0.3.4] — 2026-06-25
 
 Lockstep version-only bump across all **20 packages**; the only source
