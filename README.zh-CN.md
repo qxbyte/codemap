@@ -36,28 +36,92 @@ CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI A
 | `diagnostics.json` | 索引期收集的 warning / error |
 | `.lock` | 进程间写锁;勿动 |
 
-### `.ai-memory/` — 6 个 YAML 文件(由 `codemap-aimemory` 产出)
+### `.ai-memory/` — 四层记忆模型(部分由 `codemap-aimemory` 产出)
 
-AI Agent 直接读这个目录。稳定的 `entity_id`(`fn-* / cls-* / tbl-*`)从 SCIP `SymbolID` 派生。
+`codemap-aimemory` 负责 L0+L1(每次 `codemap index` 都写)；L2+L3
+(`knowledge/` 目录)由[兄弟工具](#与-specode-distill--task-swarm-的集成)
+`specode-distill` 和 `task-swarm` 产生。AI Agent 直接读这棵树。稳定的
+`entity_id`(`fn-* / cls-* / tbl-* / mod-*`)从 SCIP `SymbolID` 派生。
 
 ```
 .ai-memory/
-├── entities/
-│   ├── functions.yml      含 calls / called_by / related_tables / signature /
-│   │                      line_range / confidence / change_count_90d /
-│   │                      business_meaning
-│   ├── tables.yml         tbl-* 表实体
-│   └── files.yml          file-* 文件条目
-├── relations/
-│   ├── call-graph.yml      `{from, to, type=calls, confidence}`
-│   ├── table-relations.yml `{from, to, type=accesses_table, confidence}`
-│   └── rule-constraints.yml 空占位符(由 L2 维护)
-└── enrichment/             可选:LLM 生成的解释
-    └── <sha1[:12]>.yml     `{symbol_id, business_meaning, related_rules,
-                              confidence:"llm", source_model, generated_at}`
+├── project.yml              ← L0(codemap-aimemory 0.3.2+)
+│                              技术栈 / 依赖 / git remote / 顶级目录 /
+│                              关键 config 文件 — best-effort 自动探测
+│
+├── entities/                ← L1(codemap-aimemory 0.3.0+)
+│   ├── functions.yml          fn-/cls- 实体:calls / called_by /
+│   │                          related_tables / signature / line_range /
+│   │                          confidence / change_count_90d /
+│   │                          business_meaning
+│   ├── tables.yml             tbl-* 表实体
+│   ├── files.yml              file-* 文件条目
+│   └── modules.yml            mod-* 按 file 聚合(0.3.3+):
+│                              {id, path, language, fn_count, cls_count,
+│                               functions[], classes[]}
+│
+├── relations/               ← L1
+│   ├── call-graph.yml         `{from, to, type=calls, confidence}`
+│   ├── table-relations.yml    `{from, to, type=accesses_table, confidence}`
+│   └── rule-constraints.yml   空占位符(由 L2 维护)
+│
+├── enrichment/              ← L1 可选:LLM 生成的解释
+│   └── <sha1[:12]>.yml        `{symbol_id, business_meaning,
+│                                related_rules, confidence:"llm",
+│                                source_model, generated_at}`
+│
+├── _global/                 ← L1↔L2/L3 跨层 lookup(codemap-aimemory 0.3.4+)
+│   └── entities.yml           跨链视图:每个 entity_id(code 或 knowledge)
+│                              带 `source` ∈ {code, knowledge, both} +
+│                              `knowledge_refs`(哪些 knowledge yml
+│                              提到这个实体)。`codemap recall` 的底层
+│                              索引。
+│
+└── knowledge/               ← L2 + L3(**codemap 本身不写**;
+                              由 specode-distill / task-swarm 产生;
+                              codemap-aimemory 只读它构建
+                              _global/entities.yml 并支撑 recall)
+    ├── rules/    rule-*.yml         L2 业务规则 / 机制
+    ├── business/ biz-*.yml          L2 业务流程 / 功能页
+    ├── modules/  mod-*.yml          L2 模块地图(表 / 调用链)
+    ├── cases/    case-*.yml         L3 历史实现案例
+    └── pitfalls/ pit-*.yml          L3 可复用失败 / 修复经验
 ```
 
 两跳展开:Java 方法 `maps_to` 一个 `sql_mapping`,后者 `accesses_table` 某张表 → 该表自动出现在方法的 `related_tables` 中。所以 `fn-selectByUser.related_tables = [tbl-sf_coupon]` 不需要 Agent 自己走链。
+
+---
+
+### 与 `specode-distill` / `task-swarm` 的集成
+
+codemap-aimemory 拥有 L0+L1;**L2+L3(`knowledge/`)来自
+[pluginhub](https://github.com/qxbyte/pluginhub) 家族的兄弟工具**。
+集成是单向松耦合的——codemap 不 import 其它工具,只在 yml 存在时
+读取它们的产物:
+
+| 层 | 写入工具 | 触发时机 |
+|---|---|---|
+| L0 `project.yml` | `codemap-aimemory`(本工具) | 每次 `codemap index` |
+| L1 `entities/*`、`relations/*`、`enrichment/*` | `codemap-aimemory`(本工具) | 每次 `codemap index`(enrichment 是 opt-in:`codemap enrich`) |
+| L1↔L2/L3 `_global/entities.yml` | `codemap-aimemory`(本工具) | 每次 `codemap index`,扫 `knowledge/*.yml`(若存在) |
+| L2/L3 `knowledge/{rules,business,modules,cases,pitfalls}/*.yml` | `specode-distill`(`pluginhub` 插件,specode 3.0+) | 用户运行 `/specode:specode-distill <slug>`,或在 specode acceptance 末尾选"立即沉淀" |
+| L3 `knowledge/cases/case-*.yml` + `knowledge/pitfalls/pit-*.yml` | `task-swarm`(`pluginhub` 插件,0.6+) | 每次 `task_swarm.py resolve` 成功收尾时自动 |
+
+每次 `specode-distill` / `task-swarm` 写入时**还会同步产出**一份双胞胎
+markdown:`<project_root>/knowledge-base/<category>/<id>.md`(与 yml
+同 stem)。md 双产保留 yml 字段化丢失的散文 / ascii 流程图 /
+表格,是未来 embedding indexer 的高质量切片源。**codemap 本身今天不读
+`knowledge-base/`**——`codemap recall` 走的是 yml 一侧;md 是给人读和
+未来 P1-3 语义搜索用的。
+
+**用 `codemap recall '<query>'` 查询统一视图**(代码侧实体命中 +
+对每个 `knowledge/*.yml` 的 token 重合度排序)。这是 specode 2.1+ 从
+requirements phase 调用的入口——在草拟新 spec 之前把"已知约束 /
+历史坑"注入上下文。完整 agent 端工作流见 `docs/integration.md`(规划中)。
+
+`knowledge/` 不是 codemap 运行的必要条件。从未跑过 `specode-distill` /
+`task-swarm` 的项目,`_global/entities.yml` 只会列代码侧实体
+(`source: code`),`codemap recall` 返回命中实体 + 空 `knowledge: []`。
 
 ## LLM 配置(可选)
 
@@ -322,6 +386,14 @@ codemap callees '<symbol-id>'
 codemap trace --from '<id>' --depth 5
 codemap trace --from '<id>' --to '<id>' # 最短路径
 codemap routes                          # http_route 桥接器产出的路由
+
+# 知识检索 — 0.3.5+(codemap-aimemory 插件)
+# 扫 .ai-memory/knowledge/*.yml(由 specode-distill / task-swarm 写)
+# 按 token 重合度排序;返回 top-K 相关知识。
+# 设计上由 specode 在 requirements phase 开头自动调用。
+codemap recall '<query>'                                # 默认 top-k 5,yaml 输出
+codemap recall '<query>' -p /abs/project -k 10 -o json  # 显式项目 + json
+codemap recall '<query>' -t rules,pitfalls              # 按类别过滤
 
 # 机器可读输出:所有命令都支持 --json
 codemap --json callers '<symbol-id>'
