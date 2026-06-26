@@ -87,6 +87,7 @@ jobs:
           - { name: codemap-jsp,        dir: "plugins/codemap-jsp" }
           - { name: codemap-mybatis,    dir: "plugins/codemap-mybatis" }
           - { name: codemap-aimemory,   dir: "plugins/codemap-aimemory" }
+          - { name: codemap-semantic-index, dir: "plugins/codemap-semantic-index" }
     steps:
       - uses: actions/checkout@v4
 
