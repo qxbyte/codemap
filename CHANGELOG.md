@@ -8,6 +8,37 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.3.4] — 2026-06-25
+
+Lockstep version-only bump across all **20 packages**; the only source
+change is in `codemap-aimemory` — closes the AI-Enterprise-Delivery-
+System roadmap **P1-2** (global entity index — business ↔ code).
+
+### `codemap-aimemory` — global entity cross-walk (P1-2)
+
+* New module `codemap_aimemory.global_entities` with a pure aggregator
+  `build_global_entities(out_dir, code_entity_ids)` that walks the
+  emitter's own entity vocabulary (`fn-*`, `cls-*`, `tbl-*`, `mod-*`)
+  alongside any `<out_dir>/knowledge/{rules,business,modules,cases,
+  pitfalls}/*.yml` produced by `spec-distill v2`. Knowledge yml is
+  scanned for three reference channels: `related_code[].entity`,
+  `related_knowledge[]`, and `affects[]` (pitfalls). Malformed yml
+  is silently skipped — a hand-edited knowledge file never crashes
+  the build.
+* `AiMemoryEmitter` now writes **`.ai-memory/_global/entities.yml`**:
+  one row per entity with `id`, inferred `type` (from id prefix),
+  `source` (`code` / `knowledge` / `both`), and `knowledge_refs`
+  (every knowledge_id that mentions this entity). Top-level `counts`
+  partition: `total` / `code_only` / `knowledge_only` / `both`.
+* Type inference covers all current prefixes: `fn-` → function,
+  `cls-` → class, `tbl-` → table, `mod-` → module, `rule-` → rule,
+  `biz-` → business_process, `case-` → case, `pit-` → pitfall.
+* Closes the L1 ↔ L2/L3 lookup gap: an Agent answering "where is
+  `sf_coupon` referenced?" now hits one yml instead of walking the
+  whole knowledge tree.
+* 13 new unit tests (`test_global_entities.py`) + 1 emitter integration
+  test cover empty / partial / cross-linked / malformed scenarios.
+
 ## [0.3.3] — 2026-06-25
 
 Lockstep version-only bump across all **20 packages**; the only source
