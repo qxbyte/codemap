@@ -254,3 +254,132 @@ def test_recall_result_carries_required_fields(tmp_path: Path) -> None:
     assert item["file"].endswith("rule-coupon.yml")
     assert "query" in result
     assert "tokens" in result
+    # P4-1/P4-2 fields always present
+    assert "freshness_score" in item
+    assert "ranked_score" in item
+    assert "stale" in item
+
+
+# ---------- with_content (P3-2 enablement) ----------
+
+
+def test_recall_with_content_adds_rule_fields(tmp_path: Path) -> None:
+    _seed_ai_memory(tmp_path)
+    _write_yml(
+        tmp_path / ".ai-memory" / "knowledge" / "rules" / "rule-coupon.yml",
+        {
+            "knowledge_id": "rule-coupon-mutex",
+            "type": "business_rule",
+            "title": "优惠券和积分互斥",
+            "statement": "Coupons and points can't both apply to the same order.",
+            "why": "Prevents stacking discounts beyond margin.",
+            "exceptions": ["VIP ≥ 8"],
+            "enforcement": ["service layer throws", "frontend disables checkbox"],
+        },
+    )
+    result = recall("coupon", tmp_path, with_content=True)
+    item = result["knowledge"][0]
+    assert "content" in item
+    c = item["content"]
+    assert "Coupons and points" in c["statement"]
+    assert "stacking discounts" in c["why"]
+    assert c["exceptions"] == ["VIP ≥ 8"]
+    assert len(c["enforcement"]) == 2
+
+
+def test_recall_with_content_omits_empty_fields(tmp_path: Path) -> None:
+    _seed_ai_memory(tmp_path)
+    _write_yml(
+        tmp_path / ".ai-memory" / "knowledge" / "rules" / "rule-x.yml",
+        {
+            "knowledge_id": "rule-x",
+            "title": "Minimal rule",
+            "statement": "X",  # only statement; no why/exceptions/enforcement
+        },
+    )
+    result = recall("rule", tmp_path, with_content=True)
+    item = result["knowledge"][0]
+    assert item["content"] == {"statement": "X"}
+
+
+def test_recall_with_content_pitfall_fields(tmp_path: Path) -> None:
+    (tmp_path / ".ai-memory" / "knowledge" / "pitfalls").mkdir(parents=True)
+    _write_yml(
+        tmp_path / ".ai-memory" / "knowledge" / "pitfalls" / "pit-x.yml",
+        {
+            "knowledge_id": "pit-amount-null",
+            "type": "pitfall",
+            "title": "amount null NPE",
+            "symptom": "NullPointerException on BigDecimal.add",
+            "root_cause": "no requireNonNullElse guard",
+            "fix": ["Optional.ofNullable(amount).orElse(ZERO)"],
+            "affects": ["src/order/query.js"],
+        },
+    )
+    result = recall("amount", tmp_path, with_content=True)
+    item = result["knowledge"][0]
+    c = item["content"]
+    assert "NullPointerException" in c["symptom"]
+    assert "requireNonNullElse" in c["root_cause"]
+    assert "Optional.ofNullable" in c["fix"][0]
+    assert "src/order/query.js" in c["affects"]
+
+
+def test_recall_without_with_content_no_content_field(tmp_path: Path) -> None:
+    _seed_ai_memory(tmp_path)
+    _write_yml(
+        tmp_path / ".ai-memory" / "knowledge" / "rules" / "rule-x.yml",
+        {"knowledge_id": "rule-x", "title": "X", "statement": "stmt"},
+    )
+    result = recall("rule", tmp_path, with_content=False)
+    assert "content" not in result["knowledge"][0]
+
+
+# ---------- freshness ranking ----------
+
+
+def test_recall_ranks_fresher_above_stale_with_same_score(tmp_path: Path) -> None:
+    """Two hits with identical token score: the one updated today should
+    outrank the one updated 2 years ago."""
+    _seed_ai_memory(tmp_path)
+    _write_yml(
+        tmp_path / ".ai-memory" / "knowledge" / "rules" / "rule-fresh.yml",
+        {"knowledge_id": "rule-fresh", "title": "coupon", "updated_at": "2026-06-26"},
+    )
+    _write_yml(
+        tmp_path / ".ai-memory" / "knowledge" / "rules" / "rule-stale.yml",
+        {"knowledge_id": "rule-stale", "title": "coupon", "updated_at": "2024-06-26"},
+    )
+    result = recall("coupon", tmp_path)
+    ids = [k["knowledge_id"] for k in result["knowledge"]]
+    assert ids == ["rule-fresh", "rule-stale"]
+    # fresh < threshold check
+    fresh = next(k for k in result["knowledge"] if k["knowledge_id"] == "rule-fresh")
+    stale = next(k for k in result["knowledge"] if k["knowledge_id"] == "rule-stale")
+    assert fresh["freshness_score"] > stale["freshness_score"]
+    assert fresh["stale"] is False
+    assert stale["stale"] is True  # 2 years old → way below 0.5 threshold
+
+
+def test_recall_freshness_uses_code_change_map(tmp_path: Path) -> None:
+    """Code churn pulls freshness down even for a recently-updated yml."""
+    _seed_ai_memory(tmp_path)
+    (tmp_path / ".ai-memory" / "entities").mkdir(parents=True)
+    _write_yml(
+        tmp_path / ".ai-memory" / "entities" / "functions.yml",
+        [{"id": "fn-x", "file": "src/x.py", "change_count_90d": 30}],
+    )
+    _write_yml(
+        tmp_path / ".ai-memory" / "knowledge" / "rules" / "rule-churned.yml",
+        {
+            "knowledge_id": "rule-churned",
+            "title": "rule about src/x",
+            "updated_at": "2026-06-26",
+            "related_code": [{"file": "src/x.py"}],
+        },
+    )
+    result = recall("rule", tmp_path)
+    item = result["knowledge"][0]
+    # 30 changes → code_factor = 1 / (1 + 0.05 * 30) = 0.4 → freshness ≈ 0.4
+    assert item["freshness_score"] < 0.5
+    assert item["stale"] is True
