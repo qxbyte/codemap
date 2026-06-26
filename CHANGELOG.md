@@ -8,6 +8,43 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.3.6] — 2026-06-26
+
+Lockstep version-only bump across all **20 packages**; the only source
+change is in `codemap-aimemory` — adds an alternate input shape to
+`codemap recall` that takes a spec file path instead of a free-text
+query, so downstream automation (specode-distill / specode-continue)
+can call it without having to hand-pick keywords.
+
+### `codemap-aimemory` — `codemap recall --from-spec <path>`
+
+* New `--from-spec` / `-f` option on `codemap recall`. Reads the given
+  markdown file (typically `<specsRoot>/<slug>/requirements.md`) and
+  uses its full text as the recall query. Mutually exclusive with
+  the positional query argument.
+* The positional `query` is now optional; exactly one of `query` or
+  `--from-spec` must be supplied (otherwise exit 2 with a clear
+  error message).
+* When `--from-spec` is used the result yaml/json carries:
+  - `from_spec: <abs path>` — the source file
+  - `query: "<from-spec:<filename>>"` — short stand-in instead of
+    the entire spec body (keeps the result compact and avoids
+    accidentally leaking the full requirements into logs)
+* Tokenizer / ranking logic unchanged; pure additive on the input
+  surface. Existing positional-query call sites are unaffected.
+* 8 new CLI tests in `test_recall_cli.py` cover both shapes,
+  mutual-exclusion errors, missing-file error, `.ai-memory`
+  presence check, and the types filter on the spec path.
+  Aimemory plugin tests: 115 → 123.
+
+### Roadmap pairing
+
+The companion change in `pluginhub` extends `specode-distill`'s
+breakdown step (step 4) with a pre-step that calls `codemap recall
+--from-spec --types rules,pitfalls` to surface existing pitfalls /
+rules before proposing new knowledge — closing the AI-EDS roadmap
+**P2-2** loop (write rules with awareness of historical pitfalls).
+
 ## [0.3.5] — 2026-06-26
 
 Lockstep version-only bump across all **20 packages**; the only source
