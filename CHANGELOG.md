@@ -8,6 +8,82 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-27
+
+Lockstep MINOR bump across all **20 packages**; the only source change
+is in `codemap-aimemory`. Closes AI-EDS roadmap **P4-1 / P4-2** and
+enables the spec-content-injection path for **P3-2** (specode side).
+
+### `codemap-aimemory` — knowledge freshness + content injection
+
+#### New `freshness.py` module (P4-1)
+
+* `compute_freshness(kn, code_change_map, today)` returns a `[0, 1]`
+  score: `1` = fresh, `0` = very stale. Formula:
+  `age_factor (180-day half-life) × code_change_factor (decays with
+  referenced code churn)`. Gentle defaults — a year-old knowledge
+  with zero code churn still scores ~0.25.
+* `load_code_change_map(ai_memory_root)` walks
+  `entities/{functions,tables}.yml` and builds
+  `{file_path: change_count_90d}` (max wins when multiple symbols
+  share a file). Missing entities yml degrades freshness gracefully
+  to age-only.
+* `STALE_THRESHOLD = 0.5` — hits below this are flagged
+  `stale: true`.
+* 11 new unit tests cover the algebra, future-clamped dates,
+  malformed inputs, and the entities-yml loader.
+
+#### `recall` integration (P4-2)
+
+* Every result now carries `freshness_score`, `ranked_score`
+  (`= score × freshness`), and `stale: bool`.
+* Sort order changes from "raw token score desc" to
+  **"ranked_score desc"** — a fresher hit outranks a stale one at the
+  same token score. This is a behaviour change but yaml/json schema
+  is additive (old fields untouched).
+* `recall(query, project_root, ..., with_content=True)` adds a
+  `content` dict to each result with the category's core fields:
+  - `rules`: `statement` / `why` / `trigger_conditions` /
+    `exceptions` / `enforcement`
+  - `business`: `trigger` / `end_state` / `steps` / `data_flow` /
+    `ui_constraints`
+  - `modules`: `scope` / `primary_entity` / `columns` / `shard` /
+    `call_chain`
+  - `cases`: `implementation_summary` / `key_decisions` /
+    `bugs_encountered` / `lessons` / `review_findings` /
+    `acceptance_status` / `changed_files`
+  - `pitfalls`: `symptom` / `root_cause` / `fix` / `prevention` /
+    `affects`
+  Empty fields are omitted to keep the rendered output compact.
+
+#### `codemap recall` CLI
+
+* New `--with-content` / `-c` flag opt-ins to the per-hit `content`
+  dict. Default off keeps the existing lightweight output for
+  consumers (e.g. specode-distill step 4 pre-check) that only need
+  knowledge ids.
+* 8 new `test_recall.py` cases cover `with_content` field extraction
+  (rule / pitfall / case categories), empty-field omission,
+  freshness ranking (fresh > stale at equal token score), and code
+  churn pulling freshness down.
+* 2 new `test_recall_cli.py` cases cover the `-c` / `--with-content`
+  flag end-to-end through Typer.
+
+### Roadmap pairing
+
+Companion pluginhub change (specode 3.0.1 → 3.1.0) rewrites
+`skills/specode/SKILL.md`:
+- step 2.2 injection now calls `codemap recall --with-content` and
+  renders each hit as a `### [[knowledge_id]]` subsection with a
+  fields table (instead of the wikilink-only line) — this is the
+  P3-2 "knowledge content" half.
+- step 3 design phase ends with a post-check scanning the
+  `## 已知约束 / 历史坑` section for any `rule-*` ids and verifying
+  `design.md` either acknowledges or explicitly overrides each one —
+  this is the P3-2 "rule enforcement" half.
+
+Aimemory plugin tests: 123 → 143.
+
 ## [0.3.6] — 2026-06-26
 
 Lockstep version-only bump across all **20 packages**; the only source

@@ -99,6 +99,17 @@ def register(app: typer.Typer) -> None:
                 "positional query argument.",
             ),
         ] = None,
+        with_content: Annotated[
+            bool,
+            typer.Option(
+                "--with-content",
+                "-c",
+                help="Include the category-specific core fields (statement / fix / "
+                "implementation_summary / etc.) for each hit, so downstream "
+                "automation can inject knowledge *content* into a draft "
+                "rather than just bare wikilinks.",
+            ),
+        ] = False,
     ) -> None:
         """Return knowledge yml most relevant to the query from ``.ai-memory/``.
 
@@ -137,7 +148,13 @@ def register(app: typer.Typer) -> None:
             raise typer.Exit(code=2)
 
         type_list = [t.strip() for t in types.split(",") if t.strip()] if types else None
-        result = recall(query=effective_query, project_root=path, top_k=top_k, types=type_list)
+        result = recall(
+            query=effective_query,
+            project_root=path,
+            top_k=top_k,
+            types=type_list,
+            with_content=with_content,
+        )
         if from_spec is not None:
             # Surface the spec source path so the caller can verify (and so
             # downstream automation knows which spec drove this recall).

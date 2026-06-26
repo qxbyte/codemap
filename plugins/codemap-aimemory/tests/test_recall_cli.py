@@ -138,6 +138,51 @@ def test_error_when_no_ai_memory_dir(tmp_path: Path) -> None:
 # ---------- filter passthrough ----------
 
 
+def test_with_content_flag_surfaces_rule_fields(tmp_path: Path) -> None:
+    _seed_ai_memory(tmp_path)
+    _write_yml(
+        tmp_path / ".ai-memory" / "knowledge" / "rules" / "rule-coupon.yml",
+        {
+            "knowledge_id": "rule-coupon-mutex",
+            "type": "business_rule",
+            "title": "优惠券和积分互斥",
+            "statement": "Coupons and points can't both apply.",
+            "why": "Prevents stacking discounts.",
+        },
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        _make_app(),
+        ["recall", "coupon", "-p", str(tmp_path), "-c", "-o", "json"],
+    )
+    assert result.exit_code == 0, result.stdout
+    parsed = json.loads(result.stdout)
+    item = parsed["knowledge"][0]
+    assert "content" in item
+    assert "Coupons and points" in item["content"]["statement"]
+    assert "Prevents stacking" in item["content"]["why"]
+    # P4-1/P4-2 fields always emitted
+    assert "freshness_score" in item
+    assert "ranked_score" in item
+    assert "stale" in item
+
+
+def test_with_content_short_flag(tmp_path: Path) -> None:
+    _seed_ai_memory(tmp_path)
+    _write_yml(
+        tmp_path / ".ai-memory" / "knowledge" / "rules" / "rule-x.yml",
+        {"knowledge_id": "rule-x", "title": "X", "statement": "stmt"},
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        _make_app(),
+        ["recall", "rule", "-p", str(tmp_path), "--with-content", "-o", "json"],
+    )
+    assert result.exit_code == 0, result.stdout
+    parsed = json.loads(result.stdout)
+    assert "content" in parsed["knowledge"][0]
+
+
 def test_types_filter_with_from_spec(tmp_path: Path) -> None:
     _seed_ai_memory(tmp_path)
     _write_yml(

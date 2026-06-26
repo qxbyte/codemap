@@ -25,6 +25,12 @@ from typing import Any
 
 import yaml
 
+from codemap_aimemory.freshness import (
+    STALE_THRESHOLD,
+    compute_freshness,
+    load_code_change_map,
+)
+
 __all__ = ["recall", "tokenize"]
 
 
@@ -50,18 +56,31 @@ def recall(
     project_root: Path,
     top_k: int = 5,
     types: list[str] | None = None,
+    with_content: bool = False,
 ) -> dict[str, Any]:
     """Find the top-K knowledge yml most relevant to ``query``.
 
     ``types``, when provided, restricts to those category names
     (``rules`` / ``business`` / ``modules`` / ``cases`` / ``pitfalls``).
+
+    ``with_content=True`` adds a ``content`` dict to each result with
+    the category's core fields (``rule.statement/why/exceptions/...``,
+    ``pit.symptom/fix/...``, ``case.implementation_summary/...``, ...)
+    so downstream automation can inject knowledge *content* rather than
+    just bare wikilinks. specode 3.1+ uses this in step 2.2 injection.
+
+    Every result also carries ``freshness_score ∈ [0, 1]`` and
+    ``stale: bool`` (true when score < 0.5). Ranking multiplies score
+    by freshness so stale knowledge fades behind fresher hits.
+
     Returns a dict with ``query``, ``tokens`` (parsed), ``matched_entities``
     (from ``_global/entities.yml``), and ``knowledge`` (list of result
-    dicts sorted by score desc).
+    dicts sorted by ranked score desc).
     """
     ai_mem = project_root / ".ai-memory"
     tokens = tokenize(query)
     matched_entities = _match_entities(ai_mem / "_global" / "entities.yml", tokens)
+    code_change_map = load_code_change_map(ai_mem)
 
     knowledge_root = ai_mem / "knowledge"
     candidates: list[dict[str, Any]] = []
@@ -77,19 +96,26 @@ def recall(
                 score = _score(kn, tokens)
                 if score == 0:
                     continue
-                candidates.append(
-                    {
-                        "knowledge_id": kn.get("knowledge_id") or yml_file.stem,
-                        "type": kn.get("type") or _CATEGORY_TYPE_HINT.get(subdir, ""),
-                        "category": subdir,
-                        "title": _extract_title(kn),
-                        "summary": _extract_summary(kn),
-                        "score": score,
-                        "file": str(yml_file.relative_to(project_root)),
-                    }
-                )
+                freshness = compute_freshness(kn, code_change_map)
+                ranked_score = round(score * freshness, 3)
+                entry: dict[str, Any] = {
+                    "knowledge_id": kn.get("knowledge_id") or yml_file.stem,
+                    "type": kn.get("type") or _CATEGORY_TYPE_HINT.get(subdir, ""),
+                    "category": subdir,
+                    "title": _extract_title(kn),
+                    "summary": _extract_summary(kn),
+                    "score": score,
+                    "ranked_score": ranked_score,
+                    "freshness_score": freshness,
+                    "stale": freshness < STALE_THRESHOLD,
+                    "file": str(yml_file.relative_to(project_root)),
+                }
+                if with_content:
+                    entry["content"] = _extract_content(kn, subdir)
+                candidates.append(entry)
 
-    candidates.sort(key=lambda c: (-c["score"], c["knowledge_id"]))  # stable secondary sort by id
+    # Sort by ranked score (token overlap multiplied by freshness); stable tiebreak by id.
+    candidates.sort(key=lambda c: (-c["ranked_score"], c["knowledge_id"]))
     return {
         "query": query,
         "tokens": sorted(tokens),
@@ -210,6 +236,66 @@ def _extract_summary(kn: dict[str, Any]) -> str:
         if isinstance(v, str) and v:
             return v.strip().splitlines()[0][:240]
     return ""
+
+
+# ---------- content extraction (for --with-content) ----------
+
+
+_CONTENT_FIELDS_BY_CATEGORY: dict[str, tuple[str, ...]] = {
+    "rules": (
+        "statement",
+        "why",
+        "trigger_conditions",
+        "exceptions",
+        "enforcement",
+    ),
+    "business": (
+        "trigger",
+        "end_state",
+        "steps",
+        "data_flow",
+        "ui_constraints",
+    ),
+    "modules": (
+        "scope",
+        "primary_entity",
+        "columns",
+        "shard",
+        "call_chain",
+    ),
+    "cases": (
+        "implementation_summary",
+        "key_decisions",
+        "bugs_encountered",
+        "lessons",
+        "review_findings",
+        "acceptance_status",
+        "changed_files",
+    ),
+    "pitfalls": (
+        "symptom",
+        "root_cause",
+        "fix",
+        "prevention",
+        "affects",
+    ),
+}
+
+
+def _extract_content(kn: dict[str, Any], category: str) -> dict[str, Any]:
+    """Pull the category-specific core fields out of a knowledge yml.
+
+    Returned dict is ready to render into requirements.md (specode step
+    2.2 injection) — only keeps non-empty fields so the rendered
+    markdown stays compact."""
+    fields = _CONTENT_FIELDS_BY_CATEGORY.get(category, ())
+    out: dict[str, Any] = {}
+    for key in fields:
+        value = kn.get(key)
+        if value in (None, "", [], {}):
+            continue
+        out[key] = value
+    return out
 
 
 # ---------- _global/entities.yml ----------
