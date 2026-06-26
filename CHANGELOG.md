@@ -8,6 +8,67 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.2] — 2026-06-27
+
+Lockstep version-only bump across all **20 packages**. **No source
+change** to `codemap-core` or any existing plugin. This bump exists to
+trigger a coordinated publish that ships the **first version of
+`codemap-semantic-index`** alongside (its own version: `0.1.0`).
+
+### `codemap-semantic-index` 0.1.0 (new opt-in plugin)
+
+Closes AI-EDS roadmap **P1-3** — the last open P task. Registers an
+embedding-based ranker into `codemap recall` via the
+`codemap.recall_hooks` entry-point group that 0.4.1 introduced.
+`codemap-aimemory` then RRF-fuses the embedding ranking with token
+ranking + freshness decay, so installing this plugin upgrades recall
+from token-only to **hybrid (token + embedding) + freshness** with
+**zero user code change**.
+
+* Default local model: `Qwen/Qwen3-Embedding-0.6B` (1024 dim, 32k
+  context, 1.2GB; same-source as Qwen cloud `text-embedding-v3`).
+* Cloud backend: any OpenAI-compatible `/embeddings` endpoint —
+  4 preset providers (Qwen DashScope / OpenAI / Zhipu / Voyage) +
+  custom for self-hosted vLLM / Ollama / TEI / Jina.
+* Storage: `<project_root>/.ai-memory/_semantic/`
+  (`chunks.json` model-independent metadata + `vectors.npy` 1024-dim
+  float32 + `model_id.txt` active backend fingerprint +
+  `manifest.json` text-hash for incremental).
+* New CLI: `codemap embed` (11 sub-commands — incremental embed /
+  rebuild / install model / list / use / backend set / show / reset /
+  path).
+* Config: `~/.config/codemap/embedding.yaml` (chmod 600 — carries
+  api key when in cloud mode).
+* Failure containment: hook never crashes recall (no store / model
+  mismatch / network error all silently return empty).
+* 66 deterministic unit tests; no real model download in tests.
+
+Install:
+
+```bash
+pipx inject codemap codemap-semantic-index    # opt-in; pulls torch ~200MB
+codemap embed install                          # interactive model picker
+codemap embed                                  # first embed
+codemap recall '<query>'                       # now hybrid token + embedding
+```
+
+This plugin is **NOT part of the lockstep**. Its first release is
+0.1.0; future bumps are driven by embedding-side changes, not by core
+changes. Listing it in `publish.yml` matrix is the only reason
+codemap-core itself bumps to 0.4.2 today.
+
+### Status
+
+All AI-Enterprise-Delivery-System P tasks now complete:
+
+```
+✅ P0-1 P0-2 P0-3 + modules.yml
+✅ P1-1 P1-2 P1-3   ← P1-3 ships here
+✅ P2-1 P2-2
+✅ P3-1 P3-2
+✅ P4-1 P4-2
+```
+
 ## [0.4.1] — 2026-06-27
 
 Lockstep PATCH bump across all **20 packages**. The only source change
