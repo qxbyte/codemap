@@ -9,6 +9,7 @@ ends in ``.ai-memory``):
   related_tables, signature, line_range, change_count_90d, confidence
 * ``entities/tables.yml``     — tbl- entities
 * ``entities/files.yml``      — file-* entities
+* ``entities/modules.yml``    — mod-* per-file aggregates (fn/cls counts + lists)
 * ``relations/call-graph.yml``      — calls edges
 * ``relations/table-relations.yml`` — accesses_table edges
 * ``relations/rule-constraints.yml`` — empty placeholder (L2 owns)
@@ -38,6 +39,7 @@ from codemap.core.store import ReadOnlyStore
 from codemap.emitters.base import EmitContext, EmitResult
 from codemap_aimemory.enrich import load_enrichment
 from codemap_aimemory.ids import build_entity_ids
+from codemap_aimemory.modules import aggregate_modules
 from codemap_aimemory.project_meta import build_project_meta
 
 _FN_KINDS = frozenset({"method", "function"})
@@ -152,6 +154,7 @@ class AiMemoryEmitter:
             "entities/functions.yml": functions,
             "entities/tables.yml": tables,
             "entities/files.yml": files_yml,
+            "entities/modules.yml": aggregate_modules(symbols, eid),
             "relations/call-graph.yml": rel_calls,
             "relations/table-relations.yml": rel_tables,
             "relations/rule-constraints.yml": [],

@@ -8,6 +8,34 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.3.3] — 2026-06-25
+
+Lockstep version-only bump across all **20 packages**; the only source
+change is in `codemap-aimemory` — completing the P1-1 follow-up flagged
+in the AI-Enterprise-Delivery-System roadmap (modules view of L1).
+
+### `codemap-aimemory` — per-file module aggregator
+
+* New module `codemap_aimemory.modules` with a pure aggregator
+  `aggregate_modules(symbols, entity_ids)` grouping `fn-*` / `cls-*`
+  entities by their owning file. Each module dict carries
+  `id` (`mod-<slug>`), `type: module`, `path`, `language`,
+  `fn_count`, `cls_count`, `functions` (sorted entity IDs), `classes`
+  (sorted entity IDs).
+* Slug strategy strips common source roots (`src/`, `src/main/java/`,
+  `lib/`, `app/`) and the file extension, then turns slashes into
+  dashes: `src/codemap/cli/commands/index.py` →
+  `mod-codemap-cli-commands-index`, `src/main/java/com/demo/Svc.java`
+  → `mod-com-demo-Svc`.
+* `AiMemoryEmitter` now writes **`.ai-memory/entities/modules.yml`**
+  alongside the existing `functions.yml` / `tables.yml` / `files.yml`
+  / `project.yml`. Files containing only non-fn/cls symbols (e.g.
+  MyBatis XML tables) are intentionally omitted — they're already
+  covered by `tables.yml`.
+* 10 new unit tests (`test_modules.py`) + 1 emitter integration test
+  cover slug edge cases, sorting, fn/cls counts, language capture,
+  and exclusion of table-only files.
+
 ## [0.3.2] — 2026-06-25
 
 Lockstep version-only bump across all **20 packages** to keep the family

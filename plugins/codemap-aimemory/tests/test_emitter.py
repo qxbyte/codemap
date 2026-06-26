@@ -83,12 +83,29 @@ def test_emits_all_expected_files(tmp_path: Path) -> None:
         "entities/functions.yml",
         "entities/tables.yml",
         "entities/files.yml",
+        "entities/modules.yml",
         "relations/call-graph.yml",
         "relations/table-relations.yml",
         "relations/rule-constraints.yml",
     ]
     for rel in expected:
         assert (out / rel).is_file(), f"missing {rel}"
+
+
+def test_modules_yml_aggregates_per_file(tmp_path: Path) -> None:
+    out = _emit(tmp_path)
+    mods = yaml.safe_load((out / "entities/modules.yml").read_text())
+    by_path = {m["path"]: m for m in mods}
+    # Both Svc.java and Ctl.java carry one method each; m.xml is a table
+    # and should NOT appear in modules.yml.
+    assert "src/Svc.java" in by_path
+    assert "src/Ctl.java" in by_path
+    assert "m.xml" not in by_path
+    svc = by_path["src/Svc.java"]
+    assert svc["id"] == "mod-Svc"
+    assert svc["fn_count"] == 1
+    assert svc["functions"] == ["fn-calc"]
+    assert svc["language"] == "java"
 
 
 def test_project_yml_contains_l0_meta(tmp_path: Path) -> None:
