@@ -261,6 +261,68 @@ codemap doctor
 每装一个插件,**Registered indexers** 表里就会立刻多一行,无需任何额外
 配置。如果没出现,跳到 [常见问题](#9-常见问题)。
 
+### 4.7 AI-Enterprise-Delivery-System 工作流插件(可选)
+
+codemap 是四层记忆模型工作流的**代码侧**那一半。**spec / 执行 /
+知识沉淀**那一半在另一个插件家族
+[`pluginhub`](https://github.com/qxbyte/pluginhub)。它们完全可选——
+codemap 本身可独立跑——但如果想要完整闭环,就装上:
+
+```
+新需求进入
+   ↓ specode → requirements / design / execute / acceptance
+   ↓ task-swarm(多 agent 并发执行)
+   ↓ specode-distill(知识写到 <project_root>/.ai-memory/knowledge/ + knowledge-base/)
+   ↓ 下一个需求 → codemap recall 拉历史知识 → 注入新 spec
+```
+
+三个 pluginhub 插件通过 AI IDE 自己的 plugin manager 安装(以 Claude
+Code 为例;Codex / Copilot CLI 同理):
+
+```
+# 在 Claude Code 内
+/plugin marketplace add github:qxbyte/pluginhub
+/plugin install specode      # spec 工作流 + 内置 specode-distill 子 skill
+/plugin install task-swarm   # 多 agent pipeline 编排
+
+# 可选:superpowers — brainstorming / writing-plans / TDD 套件;specode 优先调用
+/plugin marketplace add github:obra/superpowers-marketplace
+/plugin install superpowers
+```
+
+| 插件 | 最低版本 | 写入 `<project_root>/` | 触发时机 |
+|---|---|---|---|
+| `specode` | **3.0.0** | (仅通过下面的 specode-distill 子 skill) | 驱动 spec 全生命周期 |
+| └─ `specode-distill` | (specode 3.0 子 skill) | `.ai-memory/knowledge/{rules,business,modules,cases,pitfalls}/*.yml` + `knowledge-base/*.md`(双产) | 用户 `/specode:specode-distill <slug>`,或 specode acceptance 末尾选"是" |
+| `task-swarm` | **0.6.0** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md`(双产) | 每次 `task_swarm.py resolve` 成功收尾时自动 |
+| `superpowers` | 任意 | — (不写 `.ai-memory/`) | specode 调它的 brainstorming / writing-plans 等 skill |
+
+装完后新增的 slash command:
+
+| 插件 | 命令 |
+|---|---|
+| specode | `/specode:specode-spec`, `/specode:specode-continue`, `/specode:specode-list`, `/specode:specode-distill` |
+| task-swarm | `/task-swarm:swarm` |
+
+specode 2.1+ 在 requirements phase 自动调 **`codemap recall`**(来自
+`codemap-aimemory` PyPI 包),在写新 spec 前拉历史知识。所以想要完整
+集成时:
+
+```bash
+# 确保 codemap-aimemory 装了(它带 `codemap recall`)
+pipx inject codemap codemap-aimemory   # 如果 §4.2 还没装
+
+# 验证 recall 可用
+codemap recall --help                  # 应打印用法
+```
+
+没装 `codemap-aimemory` 时,spec 工作流仍能跑——specode 的 context-recall
+那一步就静默 no-op。
+
+pluginhub 插件家族还有独立的 Obsidian-vault 维护工具线(`obsidian-wiki`
+2.0+)。**不是** AI-EDS 工作流的一部分——只在你同时也想维护一个
+Obsidian LLM-wiki 时单独装。
+
 ---
 
 ## 5. 第一次使用
@@ -282,6 +344,13 @@ codemap callers '<symbol-id>'         # 谁调用了它
 codemap callees '<symbol-id>'         # 它调用了谁
 codemap trace --from '<id>' --depth 5
 codemap routes                        # http_route bridge 找到的所有 HTTP 路由
+
+# 知识检索(需要 codemap-aimemory 插件,0.3.5+)
+# 扫 .ai-memory/knowledge/*.yml——如果你装了 pluginhub 工作流
+# (见 §4.7),specode-distill / task-swarm 会写这些 yml。
+codemap recall '<query>'              # 默认 top-k 5,yaml
+codemap recall '<query>' -k 10 -o json
+codemap recall '<query>' -t rules,pitfalls
 
 # 喂给 AI agent 的结构化输出
 codemap --json routes

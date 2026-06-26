@@ -289,6 +289,72 @@ Every newly installed plugin should appear in the **Registered
 indexers** table without any further configuration. If you don't see
 it, jump to [Troubleshooting](#9-troubleshooting).
 
+### 4.7 AI-Enterprise-Delivery-System workflow plugins (optional)
+
+codemap is the **code-side** half of a four-layer-memory-model
+workflow. The **spec / execution / knowledge-distillation** halves
+live in a separate plugin family at
+[`pluginhub`](https://github.com/qxbyte/pluginhub). They are entirely
+optional — codemap runs fully standalone — but install them when you
+want the full closed loop:
+
+```
+new requirement
+   ↓ specode → requirements / design / execute / acceptance
+   ↓ task-swarm (multi-agent parallel execution)
+   ↓ specode-distill (knowledge written to <project_root>/.ai-memory/knowledge/ + knowledge-base/)
+   ↓ next requirement → codemap recall pulls prior knowledge → injected into new spec
+```
+
+The three pluginhub plugins are installed through your AI IDE's plugin
+manager (Claude Code shown here; Codex / Copilot CLI follow the same
+pattern):
+
+```
+# in Claude Code
+/plugin marketplace add github:qxbyte/pluginhub
+/plugin install specode      # spec workflow + specode-distill sub-skill
+/plugin install task-swarm   # multi-agent pipeline orchestration
+
+# optional: superpowers — brainstorming / writing-plans / TDD; specode prefers it
+/plugin marketplace add github:obra/superpowers-marketplace
+/plugin install superpowers
+```
+
+| Plugin | Min version | Writes to `<project_root>/` | When |
+|---|---|---|---|
+| `specode` | **3.0.0** | (only via specode-distill sub-skill below) | drives the spec lifecycle |
+| └─ `specode-distill` | (sub-skill of specode 3.0) | `.ai-memory/knowledge/{rules,business,modules,cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin) | user runs `/specode:specode-distill <slug>`, or accepts the prompt at end of specode's acceptance phase |
+| `task-swarm` | **0.6.0** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin) | every successful `task_swarm.py resolve` |
+| `superpowers` | any | — (no `.ai-memory/` writes) | brainstorming / writing-plans skills called by specode |
+
+After install, the new slash commands:
+
+| Plugin | Commands |
+|---|---|
+| specode | `/specode:specode-spec`, `/specode:specode-continue`, `/specode:specode-list`, `/specode:specode-distill` |
+| task-swarm | `/task-swarm:swarm` |
+
+specode 2.1+ calls **`codemap recall`** (from `codemap-aimemory`,
+PyPI) inside its requirements phase to pull prior knowledge before
+drafting a new spec. So if you want the full integration:
+
+```bash
+# Make sure codemap-aimemory is installed (it ships `codemap recall`)
+pipx inject codemap codemap-aimemory   # if not already done in §4.2
+
+# Verify recall is available
+codemap recall --help                  # should print usage
+```
+
+Without `codemap-aimemory`, the spec workflow still runs — specode's
+context-recall step just becomes a silent no-op.
+
+The pluginhub plugin family has its own product line of Obsidian-vault
+maintenance tools (`obsidian-wiki` 2.0+). It is **NOT** part of the
+AI-EDS workflow — install it only if you also want to maintain an
+Obsidian LLM-wiki separately.
+
 ---
 
 ## 5. First-time usage
@@ -310,6 +376,13 @@ codemap callers '<symbol-id>'         # who calls this
 codemap callees '<symbol-id>'         # what does this call
 codemap trace --from '<id>' --depth 5
 codemap routes                        # all HTTP routes the http_route bridge found
+
+# Knowledge recall (requires codemap-aimemory plugin, 0.3.5+)
+# Scans .ai-memory/knowledge/*.yml — written by specode-distill /
+# task-swarm if you've installed the pluginhub workflow (see §4.7).
+codemap recall '<query>'              # default top-k 5, yaml
+codemap recall '<query>' -k 10 -o json
+codemap recall '<query>' -t rules,pitfalls
 
 # Machine-readable output for AI agents
 codemap --json routes
