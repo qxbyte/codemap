@@ -298,10 +298,11 @@ Exit codes follow `sysexits.h` (ADR-005); see
 ### `.ai-memory/` — four-layer memory model
 
 Written by `codemap-aimemory` (L0+L1, every `codemap index`) and
-optionally by sibling tools (`specode-distill` for L2/L3, `task-swarm`
-for the auto-ingested `cases` + `pitfalls`). AI agents read this tree
-directly. Stable `entity_id` slugs are derived from the SCIP
-`SymbolID` (e.g. `fn-calcPrice` / `cls-OrderService` / `tbl-sf_coupon`).
+optionally by [sibling tools](#integration-with-specode-distill-and-task-swarm)
+(`specode-distill` for L2/L3, `task-swarm` for the auto-ingested
+`cases` + `pitfalls`). AI agents read this tree directly. Stable
+`entity_id` slugs are derived from the SCIP `SymbolID`
+(e.g. `fn-calcPrice` / `cls-OrderService` / `tbl-sf_coupon`).
 
 ```
 .ai-memory/
