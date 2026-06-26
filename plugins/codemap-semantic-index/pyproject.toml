@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codemap-semantic-index"
+version = "0.1.0"
+description = "Embedding-based semantic recall hook for CodeMap — registers into `codemap recall` via the recall_hooks entry-point group and adds vector search over .ai-memory/knowledge/*.yml"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "CodeMap Contributors" }]
+keywords = ["codemap", "embedding", "semantic-search", "ai-memory", "rag"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development",
+]
+dependencies = [
+    "codemap-core>=0.4.1",
+    "codemap-aimemory>=0.4.1",
+    "numpy>=1.24",
+    "httpx>=0.27",
+    "pyyaml>=6.0",
+    "typer>=0.12",
+    # sentence-transformers (and torch) is the default local backend; pulled
+    # by default so `codemap embed install` works out of the box. Users who
+    # only want the cloud backend can drop torch with --no-deps gymnastics
+    # at their own risk.
+    "sentence-transformers>=3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-cov>=6.0"]
+
+[project.entry-points."codemap.cli_commands"]
+embed = "codemap_semantic_index.cli:register"
+
+[project.entry-points."codemap.recall_hooks"]
+semantic = "codemap_semantic_index.recall_hook:rank"
+
+[project.urls]
+Homepage = "https://github.com/qxbyte/codemap"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codemap_semantic_index"]
