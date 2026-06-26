@@ -13,6 +13,8 @@ ends in ``.ai-memory``):
 * ``relations/call-graph.yml``      — calls edges
 * ``relations/table-relations.yml`` — accesses_table edges
 * ``relations/rule-constraints.yml`` — empty placeholder (L2 owns)
+* ``_global/entities.yml``    — cross-walk of code entities + knowledge yml
+  references (L1 ↔ L2/L3 lookup; P1-2)
 
 If an ``enrichment/`` folder sits alongside the output, the emitter loads
 ``business_meaning`` / ``related_rules`` keyed by ``symbol_id`` and merges
@@ -38,6 +40,7 @@ import yaml
 from codemap.core.store import ReadOnlyStore
 from codemap.emitters.base import EmitContext, EmitResult
 from codemap_aimemory.enrich import load_enrichment
+from codemap_aimemory.global_entities import build_global_entities
 from codemap_aimemory.ids import build_entity_ids
 from codemap_aimemory.modules import aggregate_modules
 from codemap_aimemory.project_meta import build_project_meta
@@ -149,15 +152,18 @@ class AiMemoryEmitter:
         files = sorted({str(s.file) for s in symbols})
         files_yml = [{"id": f"file-{i}", "path": p} for i, p in enumerate(files)]
 
+        modules_yml = aggregate_modules(symbols, eid)
+        all_entity_ids = list(eid.values()) + [m["id"] for m in modules_yml]
         outputs: dict[str, Any] = {
             "project.yml": build_project_meta(ctx.project_root),
             "entities/functions.yml": functions,
             "entities/tables.yml": tables,
             "entities/files.yml": files_yml,
-            "entities/modules.yml": aggregate_modules(symbols, eid),
+            "entities/modules.yml": modules_yml,
             "relations/call-graph.yml": rel_calls,
             "relations/table-relations.yml": rel_tables,
             "relations/rule-constraints.yml": [],
+            "_global/entities.yml": build_global_entities(out_dir, all_entity_ids),
         }
         written = _atomic_write_tree(out_dir, outputs)
         return EmitResult(files_written=written, diagnostics=[])

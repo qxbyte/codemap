@@ -87,9 +87,33 @@ def test_emits_all_expected_files(tmp_path: Path) -> None:
         "relations/call-graph.yml",
         "relations/table-relations.yml",
         "relations/rule-constraints.yml",
+        "_global/entities.yml",
     ]
     for rel in expected:
         assert (out / rel).is_file(), f"missing {rel}"
+
+
+def test_global_entities_links_knowledge_to_code(tmp_path: Path) -> None:
+    out = tmp_path / ".ai-memory"
+    (out / "knowledge" / "rules").mkdir(parents=True)
+    (out / "knowledge" / "rules" / "rule-coupon-mutex.yml").write_text(
+        yaml.safe_dump(
+            {
+                "knowledge_id": "rule-coupon-mutex",
+                "related_code": [{"entity": "fn-calc", "file": "src/Svc.java"}],
+            },
+            allow_unicode=True,
+        )
+    )
+    with JsonStore.open(tmp_path / ".codemap") as store:
+        _seed(store)
+        store.commit()
+        AiMemoryEmitter().emit(store, EmitContext(project_root=tmp_path, output_dir=out))
+    index = yaml.safe_load((out / "_global/entities.yml").read_text())
+    by_id = {e["id"]: e for e in index["entities"]}
+    assert by_id["fn-calc"]["source"] == "both"
+    assert by_id["fn-calc"]["knowledge_refs"] == ["rule-coupon-mutex"]
+    assert by_id["rule-coupon-mutex"]["source"] == "knowledge"
 
 
 def test_modules_yml_aggregates_per_file(tmp_path: Path) -> None:
