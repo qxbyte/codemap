@@ -8,6 +8,104 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.4] — 2026-06-27
+
+Lockstep PATCH bump across all **20 packages** + first MINOR for
+`codemap-semantic-index` (independent versioning) → **0.2.0**. Closes
+AI-EDS **FIX-3** in full (3c entity-exact path + 3d shared knowledge
+yml + 3e shared semantic index).
+
+### `codemap-aimemory` 0.4.4
+
+**FIX-3c — entity-exact recall hook** (`entity_exact_hook.py`):
+
+* New deterministic ranker: extracts entity-shaped tokens from the
+  query (dotted FQN / api path / CamelCase / snake\_case — same regex
+  set as `extract_query_focus`) and finds knowledge whose
+  `related_code[].entity` precisely contains them. FQN suffix
+  matching included, so `OrderController` hits
+  `com.helloshop.order.OrderController`.
+* Registered into `codemap.recall_hooks` (same mechanism semantic-
+  index uses), so it composes through the existing RRF fuser; no
+  surgery on `recall.py` and the token / embedding paths are
+  untouched. When semantic-index is also installed, all three
+  rankers fuse together — what the design doc called "三路融合".
+* `recall.extract_entities()` exposed publicly so any consumer can
+  reuse the same entity grammar.
+
+**FIX-3d — opt-in cross-project shared knowledge** (`recall_config.py`,
+`recall()` extension):
+
+* New config file `~/.config/codemap/recall.yaml` with one field —
+  `shared_roots: [/team/wiki, /org/knowledge, ...]`. XDG-friendly,
+  unsecreted (no chmod 600), simple round-trip via
+  `recall_config.load() / save()`.
+* `recall()` gains `shared_roots` + `include_shared` kwargs; when
+  enabled, every shared root's `.ai-memory/knowledge/` is scanned in
+  addition to the local one. Shared hits carry `source: shared` and
+  their `ranked_score` is multiplied by `SHARED_DEMOTION_FACTOR =
+  0.7` so a local rule wins same-overlap ties. On `knowledge_id`
+  collision the local entry wins outright.
+* `codemap recall --include-shared` CLI flag. When passed but no
+  `shared_roots` are configured, the flag is a no-op — so callers
+  (notably `specode`) can always pass it.
+* Project-root isolation (the v3 design choice that fixed the
+  cross-project混淆 bug) stays the default — shared only kicks in
+  via explicit opt-in.
+
+**Hook contract evolution**: `_fuse_with_hooks` now also passes
+`include_shared` + `shared_roots` to each hook (kwargs). Older hooks
+that don't accept these args still work via a `TypeError` fallback
+path — semantic-index 0.1.0 (pre-FIX-3e) keeps functioning unchanged.
+
+Backward-compat preserved across `recall()`: existing
+`query / tokens / matched_entities / code_context / knowledge` keys
+still ship; `source` is added on every knowledge entry (defaults to
+`local`).
+
+### `codemap-semantic-index` 0.2.0 (independent)
+
+**FIX-3e — shared semantic index**:
+
+* `recall_hook.rank()` signature extended with `*, include_shared:
+  bool = False, shared_roots: Sequence[Path | str] | None = None`.
+  When enabled, every shared root's `<root>/.ai-memory/_semantic/`
+  store is also queried; hits carry `source: shared` and `score` is
+  multiplied by 0.7 (same demotion as the token path).
+* **Vector-space safety hard-required**: a shared store whose
+  `model_id.txt` ≠ the active backend's `model_id` is silently
+  skipped (stderr warning) — never mixed. Same `ModelMismatch`
+  contract the local store already enforces, applied per shared
+  store too. Refuses to compare vectors from different embedding
+  models even when dimensions match.
+* `id` collision between local and shared → local wins.
+* Pre-check: when neither local nor any shared store is built, the
+  hook returns `[]` without building the (torch-heavy) backend, so
+  fresh projects keep their <100ms recall path.
+* Existing 0.1.0 single-store behaviour is preserved verbatim when
+  `include_shared=False` (the default) — callers from 0.4.3 don't
+  notice the change.
+* No new CLI: `codemap embed --project <shared_root>` already
+  handles embedding a shared root (the existing `--project` flag
+  accepts any directory shaped like a project).
+* 7 new tests on top of 66; total 73 deterministic tests, still no
+  real model download.
+
+### `specode` (companion pluginhub PR)
+
+* Step 2.2 recall call now passes `--include-shared`; when no
+  shared roots are configured the flag is a no-op.
+* Injection template adds a 🌐 badge to `source: shared` hits so
+  reviewers can tell at a glance which constraints come from this
+  project vs the team library.
+
+### Status
+
+* AI-EDS FIX-3 (`3c` + `3d` + `3e`) shipped in full.
+* Remaining roadmap: none in the original P0–P4 plan; future opt-in
+  features (LLM query rewrite, shared semantic auto-rebuild on
+  config change, etc.) tracked separately.
+
 ## [0.4.3] — 2026-06-27
 
 Lockstep PATCH bump across all **20 packages**. The only source change

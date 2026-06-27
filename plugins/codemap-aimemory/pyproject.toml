@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "codemap-aimemory"
-version = "0.4.3"
+version = "0.4.4"
 description = "Emit the four-layer memory model's L1 (.ai-memory/) from a CodeMap index"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -35,6 +35,9 @@ enrich = "codemap_aimemory.cli:register"
 llm = "codemap_aimemory.llm_cli:register"
 recall = "codemap_aimemory.recall_cli:register"
 knowledge = "codemap_aimemory.knowledge_cli:register"
+
+[project.entry-points."codemap.recall_hooks"]
+entity-exact = "codemap_aimemory.entity_exact_hook:rank"
 
 [project.urls]
 Homepage = "https://github.com/qxbyte/codemap"

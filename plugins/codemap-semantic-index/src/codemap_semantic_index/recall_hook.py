@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import sys
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -41,23 +41,37 @@ __all__ = ["rank"]
 #: fewer ids.
 _TOP_CHUNK_HITS = 50
 
+#: Same demotion as the token-path shared scan (FIX-3d) so the two paths
+#: agree about how much a shared hit is downgraded vs a local one.
+_SHARED_DEMOTION = 0.7
+
 
 def rank(
     query: str,
     project_root: Path,
     base_candidates: Iterable[dict[str, Any]],
+    *,
+    include_shared: bool = False,
+    shared_roots: Sequence[Path | str] | None = None,
 ) -> list[dict[str, Any]]:
     """codemap.recall_hooks entry-point.
 
-    ``base_candidates`` is the token ranker's output; we don't currently
-    use it but accept it per the hook protocol so future versions can
-    e.g. boost ids the token side already loved."""
-    store = SemanticStore(project_root)
-    if not store.is_built:
-        return []
-    chunks = store.load_chunks()
-    vectors = store.load_vectors()
-    if not chunks or vectors is None or vectors.shape[0] == 0:
+    ``base_candidates`` is part of the hook protocol but unused here.
+
+    When ``include_shared=True`` and ``shared_roots`` is non-empty, every
+    shared root's ``_semantic/`` store is also queried — FIX-3e. Shared
+    hits carry ``source: shared`` and their ``score`` is multiplied by
+    :data:`_SHARED_DEMOTION` so an equal-similarity local hit always wins.
+    Shared stores whose ``model_id`` ≠ the active backend's are silently
+    skipped (with a stderr warning) — refusing to mix vector spaces.
+    """
+    # Cheap pre-check: if no store anywhere asks to be searched, skip
+    # building the (expensive — torch import / model load) backend.
+    local_store = SemanticStore(project_root)
+    candidate_shared = [Path(s) for s in shared_roots] if (include_shared and shared_roots) else []
+    if not local_store.is_built and not any(
+        (Path(p) / ".ai-memory" / "_semantic").is_dir() for p in candidate_shared
+    ):
         return []
 
     cfg = _effective_config()
@@ -67,47 +81,93 @@ def rank(
         sys.stderr.write(f"semantic recall: failed to build backend: {exc}\n")
         return []
 
-    # Refuse to mix vector spaces.
-    try:
-        store.assert_model_matches(backend.model_id)
-    except ModelMismatch as exc:
-        sys.stderr.write(f"semantic recall: {exc}\n")
-        return []
-
     try:
         q_vec = backend.encode([query])
     except Exception as exc:
         sys.stderr.write(f"semantic recall: failed to encode query: {exc}\n")
         return []
 
-    if q_vec.shape[0] != 1 or q_vec.shape[1] != vectors.shape[1]:
+    if q_vec.shape[0] != 1:
+        sys.stderr.write(f"semantic recall: bad query vector shape {q_vec.shape}\n")
+        return []
+
+    local_entries = _scan_store(
+        project_root, q_vec[0], backend.model_id, source="local", demotion=1.0
+    )
+
+    if not include_shared or not shared_roots:
+        return _sorted_unique(local_entries)
+
+    seen_ids = {e["knowledge_id"] for e in local_entries}
+    merged: list[dict[str, Any]] = list(local_entries)
+    for sr in shared_roots:
+        shared_path = Path(sr)
+        if not (shared_path / ".ai-memory" / "_semantic").is_dir():
+            continue
+        shared_entries = _scan_store(
+            shared_path,
+            q_vec[0],
+            backend.model_id,
+            source="shared",
+            demotion=_SHARED_DEMOTION,
+        )
+        for se in shared_entries:
+            if se["knowledge_id"] in seen_ids:
+                continue  # local wins on id collision
+            seen_ids.add(se["knowledge_id"])
+            merged.append(se)
+    return _sorted_unique(merged)
+
+
+def _scan_store(
+    root: Path,
+    query_vec: np.ndarray,
+    backend_model_id: str,
+    *,
+    source: str,
+    demotion: float,
+) -> list[dict[str, Any]]:
+    """Load ``<root>/.ai-memory/_semantic/`` and return knowledge candidates
+    ranked by cosine similarity. Returns ``[]`` (with a stderr warning when
+    appropriate) on any error rather than raising, so one bad store can't
+    take recall down.
+    """
+    store = SemanticStore(root)
+    if not store.is_built:
+        return []
+    chunks = store.load_chunks()
+    vectors = store.load_vectors()
+    if not chunks or vectors is None or vectors.shape[0] == 0:
+        return []
+
+    try:
+        store.assert_model_matches(backend_model_id)
+    except ModelMismatch as exc:
+        sys.stderr.write(f"semantic recall ({source} @ {root}): {exc}\n")
+        return []
+
+    if vectors.shape[1] != query_vec.shape[0]:
         sys.stderr.write(
-            f"semantic recall: query vector shape {q_vec.shape} incompatible "
-            f"with store shape {vectors.shape}\n"
+            f"semantic recall ({source} @ {root}): vector dim mismatch "
+            f"(query={query_vec.shape[0]} vs store={vectors.shape[1]})\n"
         )
         return []
 
-    # Cosine similarity == dot product since both sides are L2-normalised.
-    sims = vectors @ q_vec[0]
-    # Top-N chunk indices
+    sims = vectors @ query_vec
     top_n = min(_TOP_CHUNK_HITS, sims.shape[0])
     top_idx = np.argpartition(-sims, top_n - 1)[:top_n]
-    # Sort the top-N by similarity desc
     top_idx = top_idx[np.argsort(-sims[top_idx])]
 
-    # Aggregate chunks → knowledge_id (best chunk score wins)
+    code_change_map = load_code_change_map(root / ".ai-memory")
     best_for_id: dict[str, tuple[float, dict[str, Any]]] = {}
-    code_change_map = load_code_change_map(project_root / ".ai-memory")
-
     for idx in top_idx:
         ch = chunks[idx]
-        score = float(sims[idx])
+        raw_score = float(sims[idx])
+        adjusted = raw_score * demotion
         existing = best_for_id.get(ch.knowledge_id)
-        if existing is not None and existing[0] >= score:
+        if existing is not None and existing[0] >= adjusted:
             continue
-        # Build a candidate entry with the standard shape the hook
-        # contract asks for. Freshness lookup needs the yml.
-        freshness = _freshness_for_chunk(ch, project_root, code_change_map)
+        freshness = _freshness_for_chunk(ch, root, code_change_map)
         entry = {
             "knowledge_id": ch.knowledge_id,
             "type": _CATEGORY_TYPE_HINT.get(ch.category, ""),
@@ -115,20 +175,19 @@ def rank(
             "title": ch.title or ch.knowledge_id,
             "summary": ch.h2_title or "",
             "file": ch.source_yml,
-            "score": round(score, 4),
+            "score": round(adjusted, 4),
             "freshness_score": freshness,
             "stale": freshness < STALE_THRESHOLD,
             "matched_chunk": ch.chunk_id,
+            "source": source,
         }
-        best_for_id[ch.knowledge_id] = (score, entry)
+        best_for_id[ch.knowledge_id] = (adjusted, entry)
+    return [e for _, e in best_for_id.values()]
 
-    # Sort knowledge entries by score desc; this is the order recall.py
-    # will use to derive RRF rank.
-    ordered = sorted(
-        (e for _, e in best_for_id.values()),
-        key=lambda e: -e["score"],
-    )
-    return ordered
+
+def _sorted_unique(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Sort by score desc with stable tie-break on knowledge_id."""
+    return sorted(entries, key=lambda e: (-e["score"], e["knowledge_id"]))
 
 
 def _effective_config() -> config.EmbeddingConfig:

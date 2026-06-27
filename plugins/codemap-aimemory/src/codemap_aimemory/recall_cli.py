@@ -33,6 +33,7 @@ import typer
 import yaml
 
 from codemap_aimemory.recall import recall
+from codemap_aimemory.recall_config import load as load_recall_config
 
 __all__ = ["register"]
 
@@ -110,6 +111,16 @@ def register(app: typer.Typer) -> None:
                 "rather than just bare wikilinks.",
             ),
         ] = False,
+        include_shared: Annotated[
+            bool,
+            typer.Option(
+                "--include-shared",
+                help="Additionally scan ``shared_roots`` from "
+                "``~/.config/codemap/recall.yaml`` (opt-in cross-project "
+                "team knowledge). Shared hits are labelled ``source: shared`` "
+                "and demoted vs local; project-root isolation is the default.",
+            ),
+        ] = False,
     ) -> None:
         """Return knowledge yml most relevant to the query from ``.ai-memory/``.
 
@@ -148,12 +159,15 @@ def register(app: typer.Typer) -> None:
             raise typer.Exit(code=2)
 
         type_list = [t.strip() for t in types.split(",") if t.strip()] if types else None
+        shared_roots = list(load_recall_config().shared_roots) if include_shared else None
         result = recall(
             query=effective_query,
             project_root=path,
             top_k=top_k,
             types=type_list,
             with_content=with_content,
+            shared_roots=shared_roots,
+            include_shared=include_shared,
         )
         if from_spec is not None:
             # Surface the spec source path so the caller can verify (and so
