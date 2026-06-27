@@ -8,6 +8,36 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## `codemap-semantic-index` 0.2.1 — 2026-06-28 (hotfix)
+
+**Critical hotfix** — closes AI-EDS v0.9 痛点 #7 (real-world try-run on
+`wework-ops-assistant`).
+
+### Fixed
+
+`recall_hook.rank()` pre-check tightened: a previously-built but empty
+store (`is_built == True` but `chunks.json == []`, which is exactly what
+`codemap embed` writes when `knowledge-base/` contains no source `.md`)
+used to fall through to `build_backend()` → `encode([query])`. That
+import-chain pulls in sentence-transformers + downloads model metadata
+from `huggingface.co` on first call, which hangs for users on restricted
+networks even with a valid SOCKS proxy.
+
+The fix replaces the `is_built` check with `is_built AND chunks not
+empty`, applied symmetrically to local and shared stores. Result:
+`codemap recall` now returns instantly (0.00s) on a fresh project with
+an empty knowledge-base + ST installed + no model downloaded yet, no HF
+network call.
+
+Two regression tests added that fail the assertion if `build_backend` is
+ever invoked when both stores are empty (10 tests total, all pass).
+
+### Why this was missed in 0.2.0
+
+`test_recall_hook.py` always called `rebuild_index` with content, so
+`store.is_built && load_chunks() == []` was never a tested state. The
+fix adds that exact regression case.
+
 ## [0.4.4] — 2026-06-27
 
 Lockstep PATCH bump across all **20 packages** + first MINOR for
