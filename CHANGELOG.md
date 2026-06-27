@@ -8,6 +8,58 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.6] — 2026-06-28
+
+Lockstep PATCH across the 20 packages. Source change is in
+`codemap-aimemory` only: closes AI-EDS **v0.9 痛点 #11** — FIX-3a's
+`extract_query_focus` was previously **dead code** (defined in
+`recall.py` but never called from any path). Long mixed-language
+queries — notably specode step 2.2 with full requirement text — were
+therefore bigram-exploding into 30+ tokens and producing 60+ false-
+positive matched_entities, defeating the entire FIX-3a design.
+
+### `codemap-aimemory` 0.4.6
+
+**Fixed — v0.9 痛点 #11**: invoke `extract_query_focus` at the top of
+`recall()` so ALL paths (direct query, `--from-spec`, programmatic
+callers) get focus extraction. The function's own short-query fallback
+keeps back-compat: queries shorter than 100 chars still pass through
+unchanged.
+
+`extract_query_focus` fallback rule tightened (body-length aware):
+
+| body length | focus signal | output |
+|---|---|---|
+| < 100 chars (short query) | short | body (back-compat passthrough) |
+| < 100 chars | rich | focus |
+| ≥ 100 chars (long query) | non-empty | **focus** (force-trim noise) |
+| ≥ 100 chars | empty | body (last resort) |
+
+The threshold change closes the gap where a long Chinese query produced
+2 short entity tokens (focus < 80 chars) and erroneously fell back to
+the raw 200-char body — the original 0.4.3 fallback only checked focus
+length, not body length, so it always defeated itself on long Chinese
+queries.
+
+Real-world reproduction on `wework-ops-assistant` (try-run 2026-06-28):
+- Before: long mixed query → 66 tokens / 627 matched_entities → notes
+  injected into requirements.md were drowning in noise
+- After: same query → 5 tokens / handful of matched_entities → useful
+
+3 new regression tests in `test_recall_query_focus_integration.py`:
+- short query unchanged (back-compat)
+- long mixed-language query keeps genuine entities (`cls-TicketController` etc.)
+- long Chinese-heavy query token count < 20 (was 66+)
+
+Also updated 1 existing test to reflect the new fallback behavior.
+
+### Out of scope for this release
+
+A *secondary* `matched_entities` flood from English word tokens
+(`api`/`id`/`created_at`) substring-matching unrelated entity ids
+(`cls-Api`/`cls-LlmApiClient`) — that's v0.9 痛点 #2
+(`_match_entities` needs boundary-aware matching) — separate PR.
+
 ## [0.4.5] — 2026-06-28
 
 **Version-only lockstep bump across all 20 packages**. No source change
