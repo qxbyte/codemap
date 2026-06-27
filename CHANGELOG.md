@@ -8,6 +8,79 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.3] — 2026-06-27
+
+Lockstep PATCH bump across all **20 packages**. The only source change
+is in `codemap-aimemory`: it becomes the **single owner of
+`.ai-memory/knowledge/` writes**, and `codemap recall` gains a query
+focus extractor + a cold-start L1 code-context fallback. Closes
+AI-Enterprise-Delivery-System **ISSUE-2 / ISSUE-5 / ISSUE-6 (freshness
++精度)** and partially closes **ISSUE-4** (cold start).
+
+### `codemap-aimemory` 0.4.3
+
+**FIX-2 — knowledge write收归 single owner** (`knowledge_*` modules):
+
+* `knowledge_schema.py`: 5-category contract (categories / id prefixes
+  / common fields / per-category content fields) is now defined **once**
+  and imported everywhere. `recall.py` drops its hand-copied tables and
+  imports from here, so future schema changes cannot drift silently.
+* `knowledge_ids.py`: canonical id derivation (`case-<spec_id>` /
+  `pit-<sig>` / `<prefix>-<kebab>`), collision-stable like
+  `entities/ids.py`.
+* `knowledge_writer.py`: atomic dual write of `.ai-memory/knowledge/
+  <cat>/<id>.yml` + `knowledge-base/<cat>/<id>.md`. Same-id merge
+  (cases supersede / others append-only), `created_at` / `updated_at`
+  stamping, schema lint, `/Volumes` mount red-line — all in code, no
+  longer "by LLM discipline". md body is passed through verbatim
+  (preserves the prose / ascii flow / `[[wikilinks]]` that yml fields
+  cannot carry).
+* `knowledge_cli.py`: new sub-commands `codemap knowledge
+  write | validate | lint`, registered via `codemap.cli_commands`
+  entry-point.
+
+This makes `task-swarm` ingest and `specode-distill` distill route
+through the **same writer**: both produce a content payload, the
+writer fills in id / schema / dates / paths / merges. The dead
+`supersede` path (auto-case file stem `case-<spec>-<gid>` vs distill's
+`case-<slug>-implementation`, never colliding) is gone — both routes
+now write `case-<spec_id>`.
+
+**FIX-3a — query focus extraction** (`extract_query_focus`):
+
+* `--from-spec` used to feed the whole requirements.md to the
+  tokenizer, exploding into hundreds of bigrams that subsumed nearly
+  every knowledge as a partial match.
+* The new extractor strips YAML frontmatter and keeps only headings +
+  entity-shaped tokens (dotted FQN / api path / CamelCase /
+  snake\_case), so ranking discriminates again. Short / structured
+  queries fall through unchanged.
+
+**FIX-3b — cold-start L1 code context** (`_build_code_context`):
+
+* When `knowledge/` is empty (first spec in a project), recall now
+  enriches the matched entity ids from `_global/entities.yml` with
+  their L1 structure (signature / callers / callees / related tables
+  / `knowledge_refs`), returned as a new `code_context` key. This
+  bridges the "half-built" path where `matched_entities` was computed
+  but never surfaced to the spec author.
+* The bridge that makes the **first spec on a project useful**: even
+  with no historic distilled knowledge, the spec author still sees
+  the relevant code map.
+
+Back-compat: the existing `query / tokens / matched_entities /
+knowledge` keys are unchanged; `code_context` is additive.
+
+### Status
+
+* AI-EDS ISSUE clean-up: **ISSUE-1 / ISSUE-2 / ISSUE-3 / ISSUE-5 /
+  ISSUE-6 (freshness + 精度 part)** closed in this release (ISSUE-1 /
+  ISSUE-3 by the companion `specode` + `task-swarm` PR in
+  `pluginhub`); **ISSUE-4 cold-start** partially closed via
+  FIX-3b (`code_context`); **ISSUE-4 islands** (cross-project shared
+  knowledge) deferred to a future opt-in flag.
+* All P-tasks remain ✅.
+
 ## [0.4.2] — 2026-06-27
 
 Lockstep version-only bump across all **20 packages**. **No source
