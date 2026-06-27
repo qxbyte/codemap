@@ -356,6 +356,13 @@ codemap recall '<query>' --with-content    # 0.4.0+:返回每个 hit 含核心�
 # 0.4.0 起每个 hit 都带 freshness_score / ranked_score / stale,
 # fresh hit 在同 token score 时排在 stale 前面。
 
+# 语义召回(opt-in,需要 codemap-semantic-index 0.1.0+)
+pipx inject codemap codemap-semantic-index   # 拉 sentence-transformers + torch
+codemap embed install                         # 交互选模型,默认 Qwen3-Embedding-0.6B (1.2GB)
+codemap embed                                  # 增量 embed knowledge-base/*.md
+codemap embed backend set --provider qwen --api-key sk-xxx  # 切云端
+# 之后 `codemap recall` 自动 hybrid token+embedding 双路召回(RRF 融合),无额外 flag
+
 # 喂给 AI agent 的结构化输出
 codemap --json routes
 codemap --json callers '<symbol-id>'

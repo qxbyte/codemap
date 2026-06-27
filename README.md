@@ -257,8 +257,16 @@ codemap recall '<query>' -p /abs/project -k 10 -o json   # explicit project + js
 codemap recall '<query>' -t rules,pitfalls               # filter categories
 codemap recall --from-spec requirements.md               # 0.3.6+: use spec file as query
 codemap recall '<query>' --with-content                  # 0.4.0+: include rule/pit/case core fields
-# Every result also carries `freshness_score`/`ranked_score`/`stale` since 0.4.0;
+# Every result carries `freshness_score`/`ranked_score`/`stale` since 0.4.0;
 # fresher hits outrank stale ones at the same token score (180-day half-life + code-churn decay).
+# With `codemap-semantic-index` plugin installed (P1-3, since v0.4.2), recall
+# automatically does hybrid token+embedding ranking with RRF fusion.
+
+# Semantic recall (requires opt-in `codemap-semantic-index` plugin, P1-3)
+codemap embed install               # interactive picker; downloads default Qwen3-Embedding-0.6B (1.2GB)
+codemap embed                       # incremental embed of knowledge-base/*.md
+codemap embed --rebuild             # force full rebuild
+codemap embed backend set --provider qwen --api-key sk-xxx  # switch to cloud Qwen embedding
 
 # Machine-readable output: all commands take --json
 codemap --json callers '<symbol-id>'
@@ -342,6 +350,12 @@ optionally by [sibling tools](#integration-with-specode-distill-and-task-swarm)
 │                              `knowledge_refs` (which knowledge yml
 │                              mention this entity). Backs `codemap recall`.
 │
+├── _semantic/               ← P1-3, OPTIONAL — written by codemap-semantic-index
+│   ├── chunks.json            chunked text + metadata (model-independent)
+│   ├── vectors.npy            (n_chunks, 1024) float32 (model-specific)
+│   ├── model_id.txt           active backend fingerprint
+│   └── manifest.json          text_hash → chunk_id (drives incremental embed)
+│
 └── knowledge/               ← L2 + L3 (NOT written by codemap itself —
                               produced by specode-distill / task-swarm;
                               codemap-aimemory reads it to build
@@ -372,8 +386,11 @@ others, just reads their yml output when present:
 | L0 `project.yml` | `codemap-aimemory` (this) | every `codemap index` |
 | L1 `entities/*`, `relations/*`, `enrichment/*` | `codemap-aimemory` (this) | every `codemap index` (enrichment is opt-in via `codemap enrich`) |
 | L1↔L2/L3 `_global/entities.yml` | `codemap-aimemory` (this) | every `codemap index`, mining `knowledge/*.yml` if present |
+| L1.5 `_semantic/*` (chunks + vectors) | `codemap-semantic-index` (opt-in plugin, P1-3) | explicit `codemap embed` |
 | L2/L3 `knowledge/rules,business,modules,cases,pitfalls/*.yml` | `specode-distill` (`pluginhub` plugin, specode 3.0+) | user runs `/specode:specode-distill <slug>` or accepts the prompt at end of specode's acceptance phase |
 | L3 `knowledge/cases/case-*.yml` + `knowledge/pitfalls/pit-*.yml` | `task-swarm` (`pluginhub` plugin, 0.6+) | every successful `task_swarm.py resolve` |
+
+When `codemap-semantic-index` is installed, `codemap recall` automatically becomes **hybrid (token + embedding) ranking via Reciprocal Rank Fusion** (k=60), then multiplied by `freshness_score`. Embedding hits that token recall missed surface naturally. Without the plugin installed, recall remains token-only — no behaviour change for users who don't want embeddings.
 
 Each `specode-distill` / `task-swarm` write **also** produces a twin
 markdown file under `<project_root>/knowledge-base/<category>/<id>.md`
