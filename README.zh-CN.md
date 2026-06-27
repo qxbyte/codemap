@@ -77,6 +77,12 @@ CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI A
 │                              提到这个实体)。`codemap recall` 的底层
 │                              索引。
 │
+├── _semantic/               ← P1-3,可选:由 codemap-semantic-index 写
+│   ├── chunks.json            chunked text + metadata(模型无关)
+│   ├── vectors.npy            (n_chunks, 1024) float32(模型相关)
+│   ├── model_id.txt           当前 active backend 指纹
+│   └── manifest.json          text_hash → chunk_id(增量 embed 用)
+│
 └── knowledge/               ← L2 + L3(**codemap 本身不写**;
                               由 specode-distill / task-swarm 产生;
                               codemap-aimemory 只读它构建
@@ -398,6 +404,14 @@ codemap recall --from-spec requirements.md              # 0.3.6+:用 spec 文件
 codemap recall '<query>' --with-content                 # 0.4.0+:返回每个 hit 含 rule/pit/case 核心字段
 # 0.4.0 起每个结果都带 `freshness_score`/`ranked_score`/`stale`;
 # 同 token score 时 fresh hit 排在 stale 前面(180 天半衰期 + 代码 churn 衰减)。
+# 装了 `codemap-semantic-index` 插件(P1-3, v0.4.2 起),recall 自动变 hybrid
+# (token + embedding) + RRF 融合 + freshness 衰减。
+
+# 语义召回(需要 opt-in `codemap-semantic-index` 插件,P1-3)
+codemap embed install               # 交互选模型;默认下载 Qwen3-Embedding-0.6B (1.2GB)
+codemap embed                       # 增量 embed knowledge-base/*.md
+codemap embed --rebuild             # 全量重算
+codemap embed backend set --provider qwen --api-key sk-xxx  # 切云端千问 embedding
 
 # 机器可读输出:所有命令都支持 --json
 codemap --json callers '<symbol-id>'

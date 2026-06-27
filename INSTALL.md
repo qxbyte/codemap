@@ -388,6 +388,14 @@ codemap recall '<query>' --with-content    # 0.4.0+: include rule/pit/case core 
 # Each hit since 0.4.0 carries freshness_score / ranked_score / stale —
 # fresher knowledge outranks stale at the same token score.
 
+# Semantic recall (opt-in, requires codemap-semantic-index 0.1.0+)
+pipx inject codemap codemap-semantic-index   # pulls sentence-transformers + torch
+codemap embed install                         # interactive picker, default Qwen3-Embedding-0.6B (1.2GB)
+codemap embed                                  # incremental embed of knowledge-base/*.md
+codemap embed backend set --provider qwen --api-key sk-xxx  # switch to cloud
+# After this, `codemap recall` automatically does hybrid token+embedding ranking
+# (RRF fusion) — no extra flag needed.
+
 # Machine-readable output for AI agents
 codemap --json routes
 codemap --json callers '<symbol-id>'
