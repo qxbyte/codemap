@@ -19,7 +19,11 @@ classifiers = [
 dependencies = [
     "codemap-core>=0.3.0,<0.4",
     "pyyaml>=6.0",
-    "httpx>=0.27",
+    # httpx[socks] pulls in socksio so users behind a SOCKS proxy
+    # (e.g. China clash/v2ray default 127.0.0.1:7890 SOCKS5) don't
+    # hit "Using SOCKS proxy, but the 'socksio' package is not installed"
+    # on first `codemap enrich` — v0.9 痛点 #3.
+    "httpx[socks]>=0.27",
     "typer>=0.12",
 ]
 
