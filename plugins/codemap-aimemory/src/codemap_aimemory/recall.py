@@ -33,8 +33,17 @@ from codemap_aimemory.freshness import (
     compute_freshness,
     load_code_change_map,
 )
+from codemap_aimemory.knowledge_schema import (
+    CATEGORIES as _KNOWLEDGE_SUBDIRS,
+)
+from codemap_aimemory.knowledge_schema import (
+    CATEGORY_TYPE as _CATEGORY_TYPE_HINT,
+)
+from codemap_aimemory.knowledge_schema import (
+    CONTENT_FIELDS_BY_CATEGORY as _CONTENT_FIELDS_BY_CATEGORY,
+)
 
-__all__ = ["RECALL_HOOK_GROUP", "RRF_K", "recall", "tokenize"]
+__all__ = ["RECALL_HOOK_GROUP", "RRF_K", "extract_query_focus", "recall", "tokenize"]
 
 #: Entry-point group used to discover external ranking hooks (e.g. the
 #: ``codemap-semantic-index`` plugin's embedding-based hook).
@@ -42,23 +51,6 @@ RECALL_HOOK_GROUP = "codemap.recall_hooks"
 
 #: RRF constant; the canonical value from Cormack 2009. Tunable in tests.
 RRF_K = 60
-
-
-_KNOWLEDGE_SUBDIRS: tuple[str, ...] = (
-    "rules",
-    "business",
-    "modules",
-    "cases",
-    "pitfalls",
-)
-
-_CATEGORY_TYPE_HINT: dict[str, str] = {
-    "rules": "business_rule",
-    "business": "business_process",
-    "modules": "module_map",
-    "cases": "case",
-    "pitfalls": "pitfall",
-}
 
 
 def recall(
@@ -139,12 +131,74 @@ def recall(
             project_root=project_root,
         )
 
+    code_context = _build_code_context(ai_mem, matched_entities, top_k)
+
     return {
         "query": query,
         "tokens": sorted(tokens),
         "matched_entities": matched_entities,
+        "code_context": code_context,
         "knowledge": candidates[:top_k],
     }
+
+
+# ---------- code_context: cold-start L1 fallback (FIX-3b) ----------
+
+
+def _build_code_context(ai_mem: Path, matched_ids: list[str], top_k: int) -> list[dict[str, Any]]:
+    """Enrich the matched entity ids with their L1 structure (signature /
+    callers / callees / related tables) and any knowledge_refs from _global.
+
+    This is the bridge that makes the *first* spec on a project useful: even
+    with an empty ``knowledge/``, the spec author sees the relevant code map.
+    """
+    if not matched_ids:
+        return []
+    wanted = set(matched_ids)
+
+    by_id: dict[str, dict[str, Any]] = {}
+    for name in ("functions.yml", "tables.yml", "files.yml", "modules.yml"):
+        data = _load_yaml(ai_mem / "entities" / name)
+        if not isinstance(data, list):
+            continue
+        for ent in data:
+            if isinstance(ent, dict) and ent.get("id") in wanted:
+                by_id.setdefault(ent["id"], ent)
+
+    refs_by_id = _load_knowledge_refs(ai_mem / "_global" / "entities.yml")
+
+    out: list[dict[str, Any]] = []
+    for eid in matched_ids:
+        ent = by_id.get(eid, {})
+        entry: dict[str, Any] = {
+            "id": eid,
+            "type": ent.get("type"),
+            "file": ent.get("file"),
+            "signature": ent.get("signature"),
+            "called_by": ent.get("called_by") or [],
+            "calls": ent.get("calls") or [],
+            "related_tables": ent.get("related_tables") or [],
+            "business_meaning": ent.get("business_meaning"),
+            "change_count_90d": ent.get("change_count_90d"),
+            "knowledge_refs": refs_by_id.get(eid, []),
+        }
+        out.append(entry)
+
+    # Most-churned entities first (likeliest hotspots), stable by id.
+    out.sort(key=lambda e: (-(e.get("change_count_90d") or 0), e["id"]))
+    return out[:top_k]
+
+
+def _load_knowledge_refs(path: Path) -> dict[str, list[str]]:
+    data = _load_yaml(path)
+    if not isinstance(data, dict):
+        return {}
+    out: dict[str, list[str]] = {}
+    for ent in data.get("entities") or []:
+        if isinstance(ent, dict) and isinstance(ent.get("id"), str):
+            refs = ent.get("knowledge_refs")
+            out[ent["id"]] = refs if isinstance(refs, list) else []
+    return out
 
 
 # ---------- recall hooks (P1-3 enablement) ----------
@@ -257,6 +311,46 @@ def _fuse_with_hooks(
 _EN_WORD_RE = re.compile(r"[a-z0-9_]+")
 _CN_RUN_RE = re.compile(r"[一-鿿]+")
 
+# ---------- query focus (FIX-3a) ----------
+
+_FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
+_ENTITY_RES = (
+    re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+"),  # dotted FQN
+    re.compile(r"/[A-Za-z0-9_][A-Za-z0-9_/{}-]*"),  # api path
+    re.compile(r"[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+"),  # CamelCase
+    re.compile(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)+"),  # snake_case
+)
+
+
+def extract_query_focus(text: str, max_chars: int = 1500) -> str:
+    """Trim a whole spec document down to its salient retrieval signal.
+
+    Passing an entire ``requirements.md`` as the query (the ``--from-spec``
+    default) token-explodes the bigram tokenizer so nearly everything matches
+    and ranking degrades to noise (AI-EDS ISSUE-6). This keeps only the
+    headings + entity-like tokens (table / class / api-path / FQN), dropping
+    the YAML frontmatter and prose filler. Falls back to the (capped) body
+    when too little structured signal is extracted, so short queries are
+    untouched.
+    """
+    if not text:
+        return ""
+    body = _FRONTMATTER_RE.sub("", text, count=1)
+
+    headings = [ln.lstrip("#").strip() for ln in body.splitlines() if ln.lstrip().startswith("#")]
+    entities: list[str] = []
+    seen: set[str] = set()
+    for pattern in _ENTITY_RES:
+        for match in pattern.findall(body):
+            if match not in seen:
+                seen.add(match)
+                entities.append(match)
+
+    focus = "\n".join([*headings, *entities])
+    if len(focus.strip()) < 80:
+        return body.strip()[:max_chars]
+    return focus[:max_chars]
+
 
 def tokenize(text: str) -> set[str]:
     """English/digit words (≥ 2 chars) + Chinese char-bigrams.
@@ -366,47 +460,6 @@ def _extract_summary(kn: dict[str, Any]) -> str:
 
 
 # ---------- content extraction (for --with-content) ----------
-
-
-_CONTENT_FIELDS_BY_CATEGORY: dict[str, tuple[str, ...]] = {
-    "rules": (
-        "statement",
-        "why",
-        "trigger_conditions",
-        "exceptions",
-        "enforcement",
-    ),
-    "business": (
-        "trigger",
-        "end_state",
-        "steps",
-        "data_flow",
-        "ui_constraints",
-    ),
-    "modules": (
-        "scope",
-        "primary_entity",
-        "columns",
-        "shard",
-        "call_chain",
-    ),
-    "cases": (
-        "implementation_summary",
-        "key_decisions",
-        "bugs_encountered",
-        "lessons",
-        "review_findings",
-        "acceptance_status",
-        "changed_files",
-    ),
-    "pitfalls": (
-        "symptom",
-        "root_cause",
-        "fix",
-        "prevention",
-        "affects",
-    ),
-}
 
 
 def _extract_content(kn: dict[str, Any], category: str) -> dict[str, Any]:

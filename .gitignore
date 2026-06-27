@@ -41,3 +41,6 @@ Thumbs.db
 
 # CodeMap own index when dogfooding
 .codemap/
+
+# Claude Code local runtime state (never commit; see deletion in 0.4.3)
+.claude/scheduled_tasks.lock
