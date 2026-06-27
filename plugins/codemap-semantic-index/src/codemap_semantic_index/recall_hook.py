@@ -65,13 +65,20 @@ def rank(
     Shared stores whose ``model_id`` ≠ the active backend's are silently
     skipped (with a stderr warning) — refusing to mix vector spaces.
     """
-    # Cheap pre-check: if no store anywhere asks to be searched, skip
-    # building the (expensive — torch import / model load) backend.
+    # Cheap pre-check: if no store anywhere has chunks to compare against,
+    # skip building the (expensive — torch import / sentence-transformers /
+    # HuggingFace model download) backend. ``is_built`` alone is not enough:
+    # a previous ``codemap embed`` that found 0 source files (empty
+    # ``knowledge-base/``) still writes an empty ``chunks.json`` +
+    # ``vectors.npy``, so the files exist but there's nothing to score
+    # against. We must also confirm the store has actual chunks.
     local_store = SemanticStore(project_root)
+    local_has_chunks = local_store.is_built and bool(local_store.load_chunks())
+
     candidate_shared = [Path(s) for s in shared_roots] if (include_shared and shared_roots) else []
-    if not local_store.is_built and not any(
-        (Path(p) / ".ai-memory" / "_semantic").is_dir() for p in candidate_shared
-    ):
+    shared_has_chunks = any(_shared_store_has_chunks(Path(p)) for p in candidate_shared)
+
+    if not local_has_chunks and not shared_has_chunks:
         return []
 
     cfg = _effective_config()
@@ -188,6 +195,23 @@ def _scan_store(
 def _sorted_unique(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Sort by score desc with stable tie-break on knowledge_id."""
     return sorted(entries, key=lambda e: (-e["score"], e["knowledge_id"]))
+
+
+def _shared_store_has_chunks(root: Path) -> bool:
+    """True iff ``<root>/.ai-memory/_semantic/`` exists *and* its store has
+    at least one chunk. Mirrors the local pre-check so a configured shared
+    root that was embedded against an empty knowledge-base doesn't trigger
+    the expensive backend build either.
+    """
+    if not (root / ".ai-memory" / "_semantic").is_dir():
+        return False
+    store = SemanticStore(root)
+    if not store.is_built:
+        return False
+    try:
+        return bool(store.load_chunks())
+    except Exception:
+        return False
 
 
 def _effective_config() -> config.EmbeddingConfig:

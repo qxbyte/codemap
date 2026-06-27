@@ -161,3 +161,63 @@ def test_rank_results_sorted_by_score_desc(tmp_path: Path) -> None:
         result = recall_hook.rank("coupon", tmp_path, base_candidates=[])
     scores = [e["score"] for e in result]
     assert scores == sorted(scores, reverse=True)
+
+
+def test_rank_returns_empty_when_store_built_but_zero_chunks(tmp_path: Path) -> None:
+    """v0.9 痛点 #7 regression — a prior ``codemap embed`` against an empty
+    knowledge-base writes chunks.json=[] + vectors.npy with shape (0, D), so
+    ``store.is_built`` is True but there's nothing to compare against. The
+    hook must short-circuit BEFORE calling ``build_backend()`` (which would
+    trigger sentence-transformers import → first-time HuggingFace metadata
+    fetch — that hangs on restricted networks even with a valid SOCKS
+    proxy).
+
+    If this regresses, the user sees ``codemap recall`` hang silently on
+    fresh non-git-repo projects with empty knowledge-base/ + ST installed
+    but no model downloaded yet.
+    """
+    # Seed an empty store: directory + files exist, but chunks.json holds [].
+    rebuild_index(tmp_path, _FakeBackend())  # builds with 0 chunks
+    # Sanity: the seeded scenario must reproduce the pre-fix state.
+    from codemap_semantic_index.store import SemanticStore
+
+    store = SemanticStore(tmp_path)
+    assert store.is_built, "test setup: store files must exist"
+    assert not store.load_chunks(), "test setup: store must be empty (0 chunks)"
+
+    # build_backend must NEVER be called in this path. If pre-check is
+    # bypassed, this patch raises a clear marker error.
+    def _explode(_cfg):
+        raise AssertionError(
+            "build_backend called for an empty store — pre-check regressed; "
+            "ST/HF would have been imported and the user would have hung."
+        )
+
+    with patch("codemap_semantic_index.recall_hook.build_backend", side_effect=_explode):
+        result = recall_hook.rank("anything", tmp_path, base_candidates=[])
+    assert result == []
+
+
+def test_rank_returns_empty_when_include_shared_with_empty_shared_stores(
+    tmp_path: Path,
+) -> None:
+    """Same pre-check logic but for the shared path (FIX-3e). An admin who
+    built a shared root against an empty source should not cause every
+    member project's recall to hang on first call."""
+    proj = tmp_path / "proj"
+    shared = tmp_path / "team"
+    rebuild_index(proj, _FakeBackend())  # local empty
+    rebuild_index(shared, _FakeBackend())  # shared empty
+
+    def _explode(_cfg):
+        raise AssertionError("build_backend called when both stores have 0 chunks")
+
+    with patch("codemap_semantic_index.recall_hook.build_backend", side_effect=_explode):
+        result = recall_hook.rank(
+            "anything",
+            proj,
+            base_candidates=[],
+            include_shared=True,
+            shared_roots=[shared],
+        )
+    assert result == []
