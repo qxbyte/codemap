@@ -8,6 +8,21 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.5] — 2026-06-28
+
+**Version-only lockstep bump across all 20 packages**. No source change
+in `codemap-core` or any of the 19 language plugins. This bump exists
+solely to trigger PyPI publication of the **`codemap-semantic-index`
+0.2.1 hotfix** (see below) — the publish workflow's tag regex requires
+a `v<x>.<y>.<z>` tag, and per-plugin patch suffixes (`v0.2.1-semantic`)
+are not yet supported (tracked as AI-EDS v0.9 痛点 #10). The 20
+lockstep packages are republished as 0.4.5 with `skip-existing: true`
+ensuring no duplicate upload; in practice only `codemap-semantic-index
+0.2.1` is the new artifact reaching PyPI in this cycle.
+
+This mirrors the 0.4.2 release pattern (which existed only to ship
+`codemap-semantic-index 0.1.0`).
+
 ## `codemap-semantic-index` 0.2.1 — 2026-06-28 (hotfix)
 
 **Critical hotfix** — closes AI-EDS v0.9 痛点 #7 (real-world try-run on
