@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "codemap-csharp"
-version = "0.4.3"
+version = "0.4.4"
 description = "C# language indexer plugin for CodeMap"
 readme = "README.md"
 requires-python = ">=3.11"

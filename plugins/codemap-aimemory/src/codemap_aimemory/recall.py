@@ -19,10 +19,11 @@ Pure function — no IO outside ``yaml.safe_load`` on knowledge yml and
 
 from __future__ import annotations
 
+import datetime
 import importlib.metadata as _md
 import re
 import warnings
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -43,7 +44,14 @@ from codemap_aimemory.knowledge_schema import (
     CONTENT_FIELDS_BY_CATEGORY as _CONTENT_FIELDS_BY_CATEGORY,
 )
 
-__all__ = ["RECALL_HOOK_GROUP", "RRF_K", "extract_query_focus", "recall", "tokenize"]
+__all__ = [
+    "RECALL_HOOK_GROUP",
+    "RRF_K",
+    "extract_entities",
+    "extract_query_focus",
+    "recall",
+    "tokenize",
+]
 
 #: Entry-point group used to discover external ranking hooks (e.g. the
 #: ``codemap-semantic-index`` plugin's embedding-based hook).
@@ -52,6 +60,12 @@ RECALL_HOOK_GROUP = "codemap.recall_hooks"
 #: RRF constant; the canonical value from Cormack 2009. Tunable in tests.
 RRF_K = 60
 
+#: Demotion factor applied to ``ranked_score`` of ``source: shared`` hits
+#: so that a local rule wins ties (FIX-3d). Empirically: 0.7 lets a clearly
+#: better shared hit still surface near the top, but keeps the project's
+#: own knowledge above same-token-overlap shared hits.
+SHARED_DEMOTION_FACTOR = 0.7
+
 
 def recall(
     query: str,
@@ -59,6 +73,9 @@ def recall(
     top_k: int = 5,
     types: list[str] | None = None,
     with_content: bool = False,
+    today: datetime.date | None = None,
+    shared_roots: Sequence[Path | str] | None = None,
+    include_shared: bool = False,
 ) -> dict[str, Any]:
     """Find the top-K knowledge yml most relevant to ``query``.
 
@@ -75,6 +92,12 @@ def recall(
     ``stale: bool`` (true when score < 0.5). Ranking multiplies score
     by freshness so stale knowledge fades behind fresher hits.
 
+    ``include_shared=True`` additionally scans every directory in
+    ``shared_roots`` (each shaped like a project root) for cross-project
+    team knowledge (FIX-3d). Shared hits are labelled ``source: shared``
+    and demoted by :data:`SHARED_DEMOTION_FACTOR` so local rules win
+    ties; on ``knowledge_id`` collision the local entry wins outright.
+
     Returns a dict with ``query``, ``tokens`` (parsed), ``matched_entities``
     (from ``_global/entities.yml``), and ``knowledge`` (list of result
     dicts sorted by ranked score desc).
@@ -84,37 +107,39 @@ def recall(
     matched_entities = _match_entities(ai_mem / "_global" / "entities.yml", tokens)
     code_change_map = load_code_change_map(ai_mem)
 
-    knowledge_root = ai_mem / "knowledge"
-    candidates: list[dict[str, Any]] = []
-    if knowledge_root.is_dir() and tokens:
-        wanted = set(types) if types else None
-        for subdir in _KNOWLEDGE_SUBDIRS:
-            if wanted is not None and subdir not in wanted:
+    candidates = _scan_root(
+        root=project_root,
+        tokens=tokens,
+        code_change_map=code_change_map,
+        types=types,
+        with_content=with_content,
+        today=today,
+        source="local",
+        demotion=1.0,
+    )
+
+    if include_shared and shared_roots:
+        seen_ids = {c["knowledge_id"] for c in candidates}
+        for sr in shared_roots:
+            shared_path = Path(sr)
+            if not shared_path.is_dir():
+                warnings.warn(f"shared knowledge root not found: {shared_path}", stacklevel=2)
                 continue
-            for yml_file in sorted((knowledge_root / subdir).glob("*.yml")):
-                kn = _load_yaml(yml_file)
-                if not isinstance(kn, dict):
-                    continue
-                score = _score(kn, tokens)
-                if score == 0:
-                    continue
-                freshness = compute_freshness(kn, code_change_map)
-                ranked_score = round(score * freshness, 3)
-                entry: dict[str, Any] = {
-                    "knowledge_id": kn.get("knowledge_id") or yml_file.stem,
-                    "type": kn.get("type") or _CATEGORY_TYPE_HINT.get(subdir, ""),
-                    "category": subdir,
-                    "title": _extract_title(kn),
-                    "summary": _extract_summary(kn),
-                    "score": score,
-                    "ranked_score": ranked_score,
-                    "freshness_score": freshness,
-                    "stale": freshness < STALE_THRESHOLD,
-                    "file": str(yml_file.relative_to(project_root)),
-                }
-                if with_content:
-                    entry["content"] = _extract_content(kn, subdir)
-                candidates.append(entry)
+            shared_cands = _scan_root(
+                root=shared_path,
+                tokens=tokens,
+                code_change_map=code_change_map,
+                types=types,
+                with_content=with_content,
+                today=today,
+                source="shared",
+                demotion=SHARED_DEMOTION_FACTOR,
+            )
+            for sc in shared_cands:
+                if sc["knowledge_id"] in seen_ids:
+                    continue  # local wins on id collision
+                seen_ids.add(sc["knowledge_id"])
+                candidates.append(sc)
 
     # Sort by ranked score (token overlap multiplied by freshness); stable tiebreak by id.
     candidates.sort(key=lambda c: (-c["ranked_score"], c["knowledge_id"]))
@@ -129,6 +154,8 @@ def recall(
             hooks=hooks,
             query=query,
             project_root=project_root,
+            include_shared=include_shared,
+            shared_roots=shared_roots,
         )
 
     code_context = _build_code_context(ai_mem, matched_entities, top_k)
@@ -140,6 +167,60 @@ def recall(
         "code_context": code_context,
         "knowledge": candidates[:top_k],
     }
+
+
+def _scan_root(
+    *,
+    root: Path,
+    tokens: set[str],
+    code_change_map: dict[str, Any],
+    types: list[str] | None,
+    with_content: bool,
+    today: datetime.date | None,
+    source: str,
+    demotion: float,
+) -> list[dict[str, Any]]:
+    """Token-score every knowledge yml under ``<root>/.ai-memory/knowledge/``.
+
+    Reused for both the project's own root (``source="local"``) and for
+    each opt-in cross-project root (``source="shared"``, with a
+    ``demotion`` < 1 applied to ``ranked_score``).
+    """
+    knowledge_root = root / ".ai-memory" / "knowledge"
+    if not knowledge_root.is_dir() or not tokens:
+        return []
+
+    wanted = set(types) if types else None
+    out: list[dict[str, Any]] = []
+    for subdir in _KNOWLEDGE_SUBDIRS:
+        if wanted is not None and subdir not in wanted:
+            continue
+        for yml_file in sorted((knowledge_root / subdir).glob("*.yml")):
+            kn = _load_yaml(yml_file)
+            if not isinstance(kn, dict):
+                continue
+            score = _score(kn, tokens)
+            if score == 0:
+                continue
+            freshness = compute_freshness(kn, code_change_map, today=today)
+            ranked_score = round(score * freshness * demotion, 3)
+            entry: dict[str, Any] = {
+                "knowledge_id": kn.get("knowledge_id") or yml_file.stem,
+                "type": kn.get("type") or _CATEGORY_TYPE_HINT.get(subdir, ""),
+                "category": subdir,
+                "title": _extract_title(kn),
+                "summary": _extract_summary(kn),
+                "score": score,
+                "ranked_score": ranked_score,
+                "freshness_score": freshness,
+                "stale": freshness < STALE_THRESHOLD,
+                "file": str(yml_file.relative_to(root)),
+                "source": source,
+            }
+            if with_content:
+                entry["content"] = _extract_content(kn, subdir)
+            out.append(entry)
+    return out
 
 
 # ---------- code_context: cold-start L1 fallback (FIX-3b) ----------
@@ -237,16 +318,19 @@ def _fuse_with_hooks(
     hooks: list[tuple[str, Callable[..., Iterable[dict[str, Any]]]]],
     query: str,
     project_root: Path,
+    include_shared: bool = False,
+    shared_roots: Sequence[Path | str] | None = None,
 ) -> list[dict[str, Any]]:
     """Run every hook, then merge their rankings with the token ranking
     via Reciprocal Rank Fusion (k=:data:`RRF_K`).
 
-    Hook contract: ``hook(query, project_root, base_candidates) ->
-    Iterable[dict]``. Each dict MUST carry ``knowledge_id``; SHOULD carry
-    the same shape as a token candidate (``type``/``category``/``title``/
-    ``summary``/``file``/``freshness_score``/``stale``). Hook entries
-    with the same ``knowledge_id`` as a token entry are de-duplicated —
-    token-side metadata wins (it's the authoritative shape).
+    Hook contract: ``hook(query, project_root, base_candidates,
+    [include_shared,] [shared_roots,]) -> Iterable[dict]``. The two
+    trailing kwargs were added in 0.4.4 (FIX-3e) — hooks built against
+    0.4.1/0.4.3 signatures still work via TypeError fallback below.
+    Each dict MUST carry ``knowledge_id``; SHOULD carry the same shape
+    as a token candidate. Token-side metadata wins on id collision (it's
+    the authoritative shape).
 
     Final ``ranked_score = rrf_score * freshness_score`` so the P4-2
     freshness behaviour is preserved end-to-end.
@@ -254,7 +338,27 @@ def _fuse_with_hooks(
     rankings: list[tuple[str, list[dict[str, Any]]]] = [("token", list(token_candidates))]
     for name, hook in hooks:
         try:
-            result = hook(query=query, project_root=project_root, base_candidates=token_candidates)
+            result = hook(
+                query=query,
+                project_root=project_root,
+                base_candidates=token_candidates,
+                include_shared=include_shared,
+                shared_roots=shared_roots,
+            )
+        except TypeError:
+            # Pre-0.4.4 hook signature without include_shared / shared_roots.
+            try:
+                result = hook(
+                    query=query,
+                    project_root=project_root,
+                    base_candidates=token_candidates,
+                )
+            except Exception as exc:
+                warnings.warn(
+                    f"recall hook '{name}' raised at call time: {exc}",
+                    stacklevel=2,
+                )
+                continue
         except Exception as exc:
             warnings.warn(f"recall hook '{name}' raised at call time: {exc}", stacklevel=2)
             continue
@@ -322,6 +426,25 @@ _ENTITY_RES = (
 )
 
 
+def extract_entities(text: str) -> list[str]:
+    """Pull entity-shaped tokens (dotted FQN / api path / CamelCase /
+    snake_case) out of arbitrary text, preserving first-seen order.
+
+    Shared by :func:`extract_query_focus` (FIX-3a) and the entity-exact
+    recall hook (FIX-3c) so both paths agree on what "an entity" looks like.
+    """
+    if not text:
+        return []
+    entities: list[str] = []
+    seen: set[str] = set()
+    for pattern in _ENTITY_RES:
+        for match in pattern.findall(text):
+            if match not in seen:
+                seen.add(match)
+                entities.append(match)
+    return entities
+
+
 def extract_query_focus(text: str, max_chars: int = 1500) -> str:
     """Trim a whole spec document down to its salient retrieval signal.
 
@@ -338,13 +461,7 @@ def extract_query_focus(text: str, max_chars: int = 1500) -> str:
     body = _FRONTMATTER_RE.sub("", text, count=1)
 
     headings = [ln.lstrip("#").strip() for ln in body.splitlines() if ln.lstrip().startswith("#")]
-    entities: list[str] = []
-    seen: set[str] = set()
-    for pattern in _ENTITY_RES:
-        for match in pattern.findall(body):
-            if match not in seen:
-                seen.add(match)
-                entities.append(match)
+    entities = extract_entities(body)
 
     focus = "\n".join([*headings, *entities])
     if len(focus.strip()) < 80:
