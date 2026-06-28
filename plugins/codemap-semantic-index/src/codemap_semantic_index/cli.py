@@ -20,6 +20,7 @@ Eleven sub-commands:
 from __future__ import annotations
 
 import contextlib
+import os
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -37,6 +38,82 @@ from codemap_semantic_index.indexer import incremental_index, rebuild_index
 from codemap_semantic_index.store import ModelMismatch
 
 __all__ = ["register"]
+
+
+def _model_cached(model_id: str) -> bool:
+    """Check whether a HuggingFace model is already in the local cache.
+
+    Used by the v0.9 痛点 #15 first-run guard so we only warn about the
+    download cost when it's actually about to happen.
+    """
+    hf_cache = Path(os.environ.get("HF_HOME") or Path.home() / ".cache" / "huggingface")
+    # HF Hub layout: ~/.cache/huggingface/hub/models--<org>--<name>/
+    safe = "models--" + model_id.replace("/", "--")
+    return (hf_cache / "hub" / safe).is_dir()
+
+
+def _emit_first_run_hints(cfg: config.EmbeddingConfig) -> None:
+    """v0.9 痛点 #15 + #16: when the user has never run `embed install` and
+    the default local model isn't cached yet, warn about the (silent) 1.2GB
+    download — plus hint at HF_ENDPOINT mirror for restricted-egress networks.
+    """
+    config_file = config.config_path()
+    if config_file.is_file():
+        # User ran `embed install` (or otherwise touched the config) — they
+        # know what backend they're on; don't pester them.
+        return
+    if cfg.backend != "local":
+        return
+    if _model_cached(cfg.model):
+        # Model is already on disk — no download, no need to warn.
+        return
+
+    typer.echo(
+        f"→ First-time embed with default backend: local {cfg.model}\n"
+        f"  This will download ~1.2GB from huggingface.co on first run.\n"
+        f"  Run `codemap embed install` to pick a different model,\n"
+        f"  or `codemap embed backend set --provider qwen --api-key ...`\n"
+        f"  to use a cloud backend (no local download).",
+        err=True,
+    )
+    if not os.environ.get("HF_ENDPOINT"):
+        typer.echo(
+            "  ⓘ If you're in mainland China and the direct HF Hub download\n"
+            "    hangs at 0 bytes / times out, set the CN mirror first:\n"
+            "      export HF_ENDPOINT=https://hf-mirror.com\n"
+            "      export HF_TOKEN=hf_xxx  # https://huggingface.co/settings/tokens",
+            err=True,
+        )
+
+
+def _emit_zero_chunks_hint(project_root: Path) -> None:
+    """v0.9 痛点 #5: when `embed` returns 0 chunks, clarify why instead of
+    leaving the user staring at `total 0` wondering if it broke.
+    """
+    kb_dir = project_root / "knowledge-base"
+    if not kb_dir.is_dir():
+        typer.echo(
+            f"\n⚠ 0 chunks because `{kb_dir}` does not exist.\n"
+            "  This is normal for a fresh project — knowledge-base/ is\n"
+            "  populated by specode-distill / task-swarm sinks. Run a spec\n"
+            "  → distill cycle first, then re-run `codemap embed`.",
+            err=True,
+        )
+        return
+    md_files = list(kb_dir.rglob("*.md"))
+    if not md_files:
+        typer.echo(
+            f"\n⚠ 0 chunks because `{kb_dir}` exists but has no .md files.\n"
+            "  Run specode-distill / task-swarm to populate it.",
+            err=True,
+        )
+        return
+    typer.echo(
+        f"\n⚠ 0 chunks despite {len(md_files)} .md file(s) under `{kb_dir}`.\n"
+        "  This is unusual — check that the .md files have heading\n"
+        "  structure (##) and non-trivial content.",
+        err=True,
+    )
 
 
 def register(app: typer.Typer) -> None:
@@ -96,6 +173,7 @@ def register(app: typer.Typer) -> None:
         if ctx.invoked_subcommand is not None:
             return
         cfg = _effective_config()
+        _emit_first_run_hints(cfg)  # v0.9 痛点 #15 + #16
         try:
             backend = build_backend(cfg)
         except ValueError as exc:
@@ -135,6 +213,8 @@ def register(app: typer.Typer) -> None:
             f"{result.n_reused} reused, {result.n_removed} removed "
             f"(total {result.n_total}); model: {result.model_id}"
         )
+        if result.n_total == 0:
+            _emit_zero_chunks_hint(path)  # v0.9 痛点 #5
 
     # ---------- codemap embed install ----------
 

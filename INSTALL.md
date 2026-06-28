@@ -390,9 +390,18 @@ codemap recall '<query>' --with-content    # 0.4.0+: include rule/pit/case core 
 
 # Semantic recall (opt-in, requires codemap-semantic-index 0.1.0+)
 pipx inject codemap codemap-semantic-index   # pulls sentence-transformers + torch
+
+# ⚠️ If you're in mainland China (or any restricted-egress network),
+# set the HuggingFace mirror + token before the first embed run —
+# direct connection to huggingface.co often times out / hangs at 0 bytes.
+# Register at https://huggingface.co/ → Settings → Access Tokens → create Read token
+echo 'export HF_ENDPOINT=https://hf-mirror.com' >> ~/.zshrc   # CN mirror
+echo 'export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxx' >> ~/.zshrc  # your token, never share
+source ~/.zshrc
+
 codemap embed install                         # interactive picker, default Qwen3-Embedding-0.6B (1.2GB)
 codemap embed                                  # incremental embed of knowledge-base/*.md
-codemap embed backend set --provider qwen --api-key sk-xxx  # switch to cloud
+codemap embed backend set --provider qwen --api-key sk-xxx  # OR switch to cloud (no model download)
 # After this, `codemap recall` automatically does hybrid token+embedding ranking
 # (RRF fusion) — no extra flag needed.
 
