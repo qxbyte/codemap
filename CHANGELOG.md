@@ -8,6 +8,39 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## `codemap-semantic-index` 0.2.2 — 2026-06-28
+
+First plugin-only hotfix release using the new `v<x>.<y>.<z>-<suffix>` tag
+form (publish.yml regex updated in 0.4.6 / PR #33). Lockstep 20 packages
+remain at 0.4.6 — no noop bump needed this time.
+
+### `codemap-semantic-index` 0.2.2
+
+Closes AI-EDS v0.9 痛点 **#5 + #15 + #16** — embed onboarding hints.
+
+`codemap embed` first-time user experience:
+
+* **#15**: 首次跑（无 config file）且默认 backend 是 local + 模型未 cache
+  时，echo "First-time embed with default backend: local Qwen/Qwen3-Embedding-0.6B
+  This will download ~1.2GB from huggingface.co..." 给两个 alternative
+  (`embed install` 选不同模型 / `backend set --provider qwen` 走云端不下载)
+* **#16**: 同一首跑分支下，未设 `HF_ENDPOINT` 时 echo CN mirror workaround:
+  `export HF_ENDPOINT=https://hf-mirror.com` + `HF_TOKEN` 提示 — 国内
+  开发者直连 hf.co 经常超时，这是必踩的 onboarding 坑
+* **#5**: 当 `embed` 返回 0 chunks，按 3 种 case 分别 echo 明确解释:
+  - `knowledge-base/` 不存在 → "normal for fresh project, run distill/swarm first"
+  - 存在但 0 个 .md → "exists but has no .md files"
+  - 有 .md 但切出 0 chunks → "unusual, check heading/size"
+
+老用户体验 0 影响：跑过 `embed install` (config 存在) / 模型已 cache /
+HF_ENDPOINT 已设 / 走 cloud backend — 全部 hint 自动跳过，不啰嗦。
+
+`INSTALL.md` + `INSTALL.zh-CN.md` 也加了 CN HF mirror + token 配置段，
+不靠 cli hint 也能从文档看到。
+
+6 个 regression tests in `tests/test_cli_onboarding_hints.py`。
+81/81 plugin tests pass, ruff/format/mypy clean.
+
 ## [0.4.6] — 2026-06-28
 
 Lockstep PATCH across the 20 packages. Source change is in
