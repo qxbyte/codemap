@@ -24,13 +24,13 @@ __all__ = ["case_id", "derive_id", "kebab", "normalize_id", "pit_id"]
 
 _NON_SLUG = re.compile(r"[^a-z0-9]+")
 
-#: Total id max length (含 prefix)。v0.4.8 加 — round 3 试跑实测：
-#: 长 title 派生出 ~150 字符 id，文件系统 + 可读性都差。80 是个常见的
-#: filename-safe 上限（POSIX guarantees 255 but git / zip / windows paths
-#: get awkward past ~80）。
+#: Total id max length (含 prefix)。v0.4.8 加 — round 3 试跑实测:
+#: 长 title 派生出 ~150 字符 id, 文件系统 + 可读性都差。80 是个常见的
+#: filename-safe 上限(POSIX guarantees 255 but git / zip / windows paths
+#: get awkward past ~80)。
 ID_MAX_LEN = 80
 
-#: 超长 slug 截断时附加的稳定短哈希长度（保证唯一性 / collision 概率低）。
+#: 超长 slug 截断时附加的稳定短哈希长度(保证唯一性 / collision 概率低)。
 _TRUNC_HASH_LEN = 8
 
 
@@ -54,15 +54,15 @@ def _truncate_slug(slug: str, max_slug_len: int, source: str) -> str:
     is the **original** text (pre-kebab) so collision is computed on the
     full input, not the truncated slug.
 
-    v0.4.8 (round 3 实测): writer 之前从 title 派生 150+ char id 文件名，
-    既不友好也踩 fs/git path 边界；max length 80 + hash suffix 是工业界
-    常用 slug 截断惯例（slugify libraries 都这么做）。
+    v0.4.8 (round 3 实测): writer 之前从 title 派生 150+ char id 文件名,
+    既不友好也踩 fs/git path 边界; max length 80 + hash suffix 是工业界
+    常用 slug 截断惯例(slugify libraries 都这么做)。
     """
     if len(slug) <= max_slug_len:
         return slug
     keep = max_slug_len - 1 - _TRUNC_HASH_LEN  # 1 for the joining "-"
     if keep < 1:
-        # max_slug_len 太小，hash 全填（极端边界，理论不该到）
+        # max_slug_len 太小, hash 全填(极端边界, 理论不该到)
         return hashlib.sha1(source.encode("utf-8")).hexdigest()[:max_slug_len]
     # Try to cut at last "-" within keep to avoid breaking a word mid-segment
     truncated = slug[:keep]
