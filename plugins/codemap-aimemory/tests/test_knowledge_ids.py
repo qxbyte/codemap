@@ -59,6 +59,7 @@ def test_normalize_id_rekebabs_messy_input():
 
 # v0.4.8: max length truncation (round 3 实测发现 150+ 字符 id 文件名)
 
+
 def test_long_id_truncated_to_max_80_chars():
     """v0.4.8: id 全长含 prefix 不超过 80 字符（filename-safe）。"""
     long_title = (
