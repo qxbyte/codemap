@@ -168,7 +168,10 @@ def recall(
             shared_roots=shared_roots,
         )
 
-    code_context = _build_code_context(ai_mem, matched_entities, top_k, query=query)
+    code_context = _build_code_context(
+        ai_mem, matched_entities, top_k,
+        query=query, query_tokens=tokens,
+    )
 
     return {
         "query": query,
@@ -242,6 +245,7 @@ def _build_code_context(
     top_k: int,
     *,
     query: str = "",
+    query_tokens: set[str] | None = None,
 ) -> list[dict[str, Any]]:
     """Enrich the matched entity ids with their L1 structure (signature /
     callers / callees / related tables) and any knowledge_refs from _global.
@@ -258,6 +262,16 @@ def _build_code_context(
     low, so when ``matched_entities`` flood with namesakes (e.g.
     ``ItTicketMapper.updateStatus`` + ``MediaFileMapper.updateStatus``)
     the genuinely-named ones surface first.
+
+    v0.9.x: ``query_tokens`` ascii-startswith fallback — when the query
+    has no entity-shaped tokens (typical for Chinese queries like
+    ``'工单指派 IT 成员'`` where ``IT`` is a 2-letter acronym not matching
+    the multi-hump CamelCase regex), ``query_entities`` is empty and the
+    original logic returns ``"low"`` for everything, collapsing the
+    sort order. The fallback marks an entity ``"high"`` if its short
+    name (lowercased) starts with any ascii ``query_token`` of length
+    ≥ 2 — so ``ItMember`` matches the ``IT`` token but ``MonitoredRoom``
+    does not.
     """
     if not matched_ids:
         return []
@@ -280,7 +294,7 @@ def _build_code_context(
     out: list[dict[str, Any]] = []
     for eid in matched_ids:
         ent = by_id.get(eid, {})
-        precision = _precision_for_entity_id(eid, query_entities)
+        precision = _precision_for_entity_id(eid, query_entities, query_tokens)
         entry: dict[str, Any] = {
             "id": eid,
             "type": ent.get("type"),
@@ -311,22 +325,35 @@ def _build_code_context(
 _ID_PREFIX_RE = re.compile(r"^(cls|fn|tbl|mod|field|route|sym)-")
 
 
-def _precision_for_entity_id(entity_id: str, query_entities: set[str]) -> str:
-    """Return ``'high'`` if ``entity_id``'s short name (after stripping the
-    type prefix) is in ``query_entities`` directly OR via FQN suffix
-    matching. Otherwise ``'low'``.
+def _precision_for_entity_id(
+    entity_id: str,
+    query_entities: set[str],
+    query_tokens: set[str] | None = None,
+) -> str:
+    """Return ``'high'`` if ``entity_id``'s short name matches the query.
 
-    Mirrors ``entity_exact_hook._entity_match`` (FQN suffix bidirectional)
-    so the two code paths agree on what counts as a precision match.
+    Three rules (priority descending):
+
+    1. ``query_entities`` exact match (incl. FQN suffix bidirectional) —
+       original v0.9 痛点 #2 behaviour, mirrors
+       ``entity_exact_hook._entity_match``.
+    2. ``query_tokens`` ascii startswith — when the query has no
+       entity-shaped tokens (typical for Chinese queries like
+       ``'工单指派 IT 成员'`` where ``IT`` is a 2-letter acronym not matching
+       any CamelCase / snake_case / FQN regex), fall back to "candidate
+       short name lowercased starts with any ascii query token of length
+       ≥ 2". Lets ``ItMember`` match the ``IT`` token while keeping
+       ``MonitoredRoom`` low. ``v0.9.x``.
+    3. Otherwise ``'low'``.
     """
-    if not query_entities:
-        return "low"
     short = _ID_PREFIX_RE.sub("", entity_id, count=1)
     # Strip the collision-disambiguating ``-<8hex>`` suffix that
     # ``entities/ids.py`` appends when two entities share the same prefix
     # + short name. Otherwise ``fn-updateStatus-4f6656b5`` would never
     # match query token ``updateStatus``.
     short = re.sub(r"-[0-9a-f]{8}$", "", short)
+
+    # Rule 1: explicit entity-shape match.
     for q in query_entities:
         if q == short:
             return "high"
@@ -334,6 +361,20 @@ def _precision_for_entity_id(entity_id: str, query_entities: set[str]) -> str:
             return "high"
         if "." in short and short.rsplit(".", 1)[-1] == q:
             return "high"
+
+    # Rule 2: ascii-token startswith fallback (v0.9.x — fixes the Chinese
+    # query collapse where everything went 'low').
+    if query_tokens:
+        short_lower = short.lower()
+        for tok in query_tokens:
+            if (
+                tok
+                and tok.isascii()
+                and len(tok) >= 2
+                and short_lower.startswith(tok)
+            ):
+                return "high"
+
     return "low"
 
 

@@ -8,6 +8,32 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.7] — 2026-06-28
+
+### Fixed — `code_context.precision` collapses to all `low` on Chinese queries (M4 / v0.9 第二轮试跑发现)
+
+2026-06-28 ticket-assign-it-member 试跑（wework-ops-assistant）实跑暴露：`codemap recall '工单指派 IT 成员'` 返回的 `code_context` 中**所有 5 个实体 precision 都是 `low`**——`matched_entities` 列出 50+ entity-exact 命中（包含 `cls-ItMember` 等）但 #2 修法（v0.9 痛点 #2 entity-exact 命中标 high）**完全没生效**，与设计意图完全相反。
+
+**真根因**：`extract_entities("工单指派 IT 成员")` 返回空 list——`IT` 是 2 字母全大写 acronym，不符合 `[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+` 的多 hump CamelCase 正则；中文 bigram 也不符合 entity-shape 正则。结果 `query_entities` 为空 set，`_precision_for_entity_id` 第一行 `if not query_entities: return "low"` 直接 short-circuit 所有 candidate 标 `low`。`matched_entities` 通过 `tokenize`（含 ascii word + 中文 bigram）走完全不同路径，与 precision check 脱节。
+
+**架构修法（不引入第三态）**：`_precision_for_entity_id` 加第三条 high 判定——**shortname (lower) startswith 任一 ascii query_token (len ≥ 2)**：
+
+| Rule | 触发 | 例 |
+|---|---|---|
+| 1 (原有) | shortname 与 `query_entities` 之一精确匹配（含 FQN suffix bidirectional） | query `TicketController` → `cls-TicketController` high |
+| 2 (新) | shortname (lower) startswith 任一 ascii `query_token` (len ≥ 2) | query `工单指派 IT 成员` 含 ascii token `it` → `cls-ItMember` / `cls-ItTicket` high；`cls-MonitoredRoom` low |
+| 3 | 否则 low | |
+
+Rule 1 优先于 Rule 2 保证 back-compat（纯英文 query 含 entity-shape token 时走原路径，结果不变）。中文 bigram token (`工单` / `指派`) 因 `tok.isascii() == False` 被忽略，不会误命中。
+
+调用方 `recall()` 现在多传 `query_tokens=tokens` 给 `_build_code_context` 透传到 `_precision_for_entity_id`。无 breaking——新参数 keyword-only optional。
+
+**Tests**：`tests/test_recall_code_context_precision.py` 新增 2 case + 1 unit test（共 5 case），覆盖中文 query + acronym / 纯 ascii nonsense token / non-ascii token 忽略 / single-char token 忽略 / Rule 1 优先 Rule 2 保 back-compat。整套 225 pass。
+
+**Why path-only**：曾考虑 ① 引入 `precision: neutral` 第三态、② 把 entity-exact hook 命中传给 code_context——但 ① 会 cascade 改 sort key + 下游所有消费者，② 让 `_build_code_context` 强耦合 hook plugin 是否安装。Rule 2 用 lowercased startswith + ascii-only 是最 local 修法，约束 query token 必须是 entity 短名前缀，避免 substring 噪声（`it` 不会误中 `splitConversations`）。
+
+**v0.9 第二轮试跑发现的其他 11 摩擦点（M1-M3 / M5-M12）按架构师聚类视角分批跨 plugin 修，详见 [[ai-eds-v09-backlog]]**。
+
 ## `codemap-semantic-index` 0.2.2 — 2026-06-28
 
 First plugin-only hotfix release using the new `v<x>.<y>.<z>-<suffix>` tag
