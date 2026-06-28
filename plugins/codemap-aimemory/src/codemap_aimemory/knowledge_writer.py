@@ -52,6 +52,22 @@ _APPEND_LIST_FIELDS: tuple[str, ...] = (
     "source_files",
 )
 
+#: identity / lifecycle fields the writer manages itself — never copied from
+#: incoming payload during an append-only merge (the writer has already stamped
+#: them).
+_IDENTITY_FIELDS: frozenset[str] = frozenset(
+    {
+        "schema_version",
+        "knowledge_id",
+        "type",
+        "version",
+        "created_at",
+        "updated_at",
+        "status",
+        "confidence",
+    }
+)
+
 #: md frontmatter is a compact subset of the yml (the rest is in the yml twin).
 _MD_FRONTMATTER_FIELDS: tuple[str, ...] = (
     "knowledge_id",
@@ -184,6 +200,16 @@ def _assemble(
 
     # append-only for rules / business / modules / pitfalls:
     # preserve structural fields, only accumulate the list links below.
+    # 0.4.9: also fill in *blank* structural fields from incoming payload —
+    # earlier writes that created the yml with only frontmatter (round 2/3
+    # rule body loss) can now be backfilled by a follow-up write carrying the
+    # real fields, without losing append-only safety for fields already
+    # populated (those stay untouched).
+    for key, value in fields.items():
+        if key in _APPEND_LIST_FIELDS or key in _IDENTITY_FIELDS:
+            continue
+        if _is_blank(kn.get(key)):
+            kn[key] = value
     for key in _APPEND_LIST_FIELDS:
         merged = _merge_list(kn.get(key), fields.get(key))
         if merged:
@@ -192,6 +218,10 @@ def _assemble(
     if category == "pitfalls" and isinstance(spec_id, str) and spec_id:
         kn["seen_again_in"] = _merge_list(kn.get("seen_again_in"), [spec_id])
     return kn, "merged"
+
+
+def _is_blank(value: Any) -> bool:
+    return value in (None, "", [], {}) or (isinstance(value, str) and not value.strip())
 
 
 def _ensure_requirement_links(kn: dict[str, Any], spec_id: Any) -> None:

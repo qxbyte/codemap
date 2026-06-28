@@ -8,6 +8,34 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.9] — 2026-06-28
+
+### Fixed — `codemap-aimemory` append-only path 不更新空主字段 (round 4 试跑发现的 rule body 丢失 bug)
+
+`knowledge_writer._assemble` 对 rules / business / modules / pitfalls 走 **append-only** 合并（只累积 `_APPEND_LIST_FIELDS`，主字段保留 existing）。设计意图是保护已写入的 statement / why / fix 不被后续 spec 误覆盖。
+
+**症状**：round 2/3 `task-swarm ingest_lessons` 后 + 用户手动 `codemap knowledge write` 时, 先用最小 payload (`{knowledge_id, fields: {}}`) 创建 rule (产生只有 frontmatter 没 body 的空 rule), 再补 body 时 append-only path 永远不填空主字段 → rule 永久缺 body。round 4 试跑 `ticket-tag-management` 确认 3 个 rule (`rule-ticketlog-...-varchar-16` / `rule-spring-httpheaders-...` / `rule-utf-8-csv-bom`) 都中招。
+
+**修法 (0.4.9)**：append-only path 在 _APPEND_LIST_FIELDS 处理**之前**加 "blank-fill"——对每个 incoming fields key, 若 existing kn 的对应 value 是 blank (`None` / `""` / `[]` / `{}` / pure whitespace), 用 incoming 值填入；已 populated 的主字段仍然 untouched (append-only safety 不变)。同时新增 `_IDENTITY_FIELDS` 黑名单（`schema_version` / `knowledge_id` / `type` / `version` / `created_at` / `updated_at` / `status` / `confidence`）防止 payload 通过 blank-fill 路径污染 writer-managed identity 字段。
+
+**回归**：
+- `test_rule_merge_is_append_only` 保持 (populated 主字段不被覆盖)
+- 新增 `test_rule_merge_backfills_blank_structural_fields` (blank-fill 工作 + 第二次 populated 后仍不被覆盖)
+- 新增 `test_rule_merge_never_overwrites_identity_fields` (identity 字段防污染)
+- knowledge_writer 15 / knowledge_cli 11 / knowledge_ids 10 全 36/36 pass
+
+**手动回填**：round 2/3 写的 3 个空 rule yml 通过 `rm + 重新 write` 回填完整 body, content 取自 round 2/3 报告 + 实际语义（VARCHAR(64) status / UTF-8 BOM / Spring ContentDisposition RFC 5987）。
+
+## [0.4.8] — 2026-06-28 (retroactive doc)
+
+### Added — `codemap-aimemory` knowledge_id 截断 + hash 后缀 (round 3 FIX-3e)
+
+`knowledge_ids.normalize_id` 加 `ID_MAX_LEN = 80` 约束 + 8 位 hash 后缀; round 3 spring-contentdisposition rule (~150 chars) 触发此修。新增 `_truncate_slug` helper, 在 kebab 边界截断 + 加 hash 保 collision 抗性。`knowledge_writer` 已支持 payload 中显式 `knowledge_id` override（line 122）。
+
+### Bumped
+
+所有 20 个 codemap-* plugin 从 0.4.7 → 0.4.8 (lockstep); `codemap-semantic-index` 保持 0.2.2 (无变更)。
+
 ## [0.4.7] — 2026-06-28
 
 ### Fixed — `code_context.precision` collapses to all `low` on Chinese queries (M4 / v0.9 第二轮试跑发现)

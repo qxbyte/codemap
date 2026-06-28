@@ -175,6 +175,99 @@ def test_rule_merge_is_append_only(project: Path):
     assert kn["created_at"] == "2026-06-01"
 
 
+def test_rule_merge_backfills_blank_structural_fields(project: Path):
+    """0.4.9: a follow-up write can fill in *blank* structural fields without
+    overwriting already-populated ones. Closes the round-2/3 rule-body-loss
+    bug where the first write only stamped frontmatter, leaving structural
+    fields blank and unrecoverable."""
+    # First write: only stamps identity + status/confidence; structural
+    # fields (statement / why / trigger_conditions) absent → end up blank.
+    write_knowledge(
+        project,
+        "rules",
+        {"knowledge_id": "rule-y", "spec_id": "REQ-001", "fields": {}},
+        today=datetime.date(2026, 6, 1),
+    )
+    kn_v1 = _read_yaml(project / ".ai-memory/knowledge/rules/rule-y.yml")
+    assert "statement" not in kn_v1  # blank baseline
+
+    # Second write: carries real body → should fill the blanks.
+    res = write_knowledge(
+        project,
+        "rules",
+        {
+            "knowledge_id": "rule-y",
+            "spec_id": "REQ-002",
+            "fields": {
+                "statement": "backfilled statement",
+                "why": "backfilled why",
+                "trigger_conditions": ["a", "b"],
+            },
+        },
+        today=TODAY,
+    )
+    assert res["action"] == "merged"
+    kn_v2 = _read_yaml(project / ".ai-memory/knowledge/rules/rule-y.yml")
+    assert kn_v2["statement"] == "backfilled statement"
+    assert kn_v2["why"] == "backfilled why"
+    assert kn_v2["trigger_conditions"] == ["a", "b"]
+    # related_requirements still appends (existing safety preserved)
+    assert set(kn_v2["related_requirements"]) == {"REQ-001", "REQ-002"}
+
+    # Third write: structural fields now populated → must NOT overwrite.
+    write_knowledge(
+        project,
+        "rules",
+        {
+            "knowledge_id": "rule-y",
+            "spec_id": "REQ-003",
+            "fields": {"statement": "different value", "why": "different why"},
+        },
+        today=TODAY,
+    )
+    kn_v3 = _read_yaml(project / ".ai-memory/knowledge/rules/rule-y.yml")
+    assert kn_v3["statement"] == "backfilled statement"  # preserved
+    assert kn_v3["why"] == "backfilled why"  # preserved
+
+
+def test_rule_merge_never_overwrites_identity_fields(project: Path):
+    """0.4.9: identity / lifecycle fields the writer manages (schema_version,
+    knowledge_id, type, version, created_at, status, confidence) must never
+    be copied from incoming payload during the blank-fill, even if the
+    existing kn has e.g. status absent (which shouldn't happen but guard
+    against payload abuse)."""
+    write_knowledge(
+        project,
+        "rules",
+        {
+            "knowledge_id": "rule-z",
+            "fields": {"statement": "first"},
+        },
+        today=datetime.date(2026, 6, 1),
+    )
+    write_knowledge(
+        project,
+        "rules",
+        {
+            "knowledge_id": "rule-z",
+            "fields": {
+                "statement": "should not overwrite",
+                "type": "ATTACKER_TYPE",
+                "knowledge_id": "rule-attacker",
+                "version": 99,
+                "created_at": "1999-01-01",
+            },
+        },
+        today=TODAY,
+    )
+    kn = _read_yaml(project / ".ai-memory/knowledge/rules/rule-z.yml")
+    assert kn["knowledge_id"] == "rule-z"  # not attacker-controlled
+    assert kn["type"] == "business_rule"  # writer-stamped, not attacker
+    assert kn["version"] == 2  # writer-bumped
+    assert kn["created_at"] == "2026-06-01"  # preserved
+    assert kn["statement"] == "first"  # blank-fill didn't overwrite
+
+
 def test_pitfall_merge_appends_seen_again_in(project: Path):
     write_knowledge(
         project,
