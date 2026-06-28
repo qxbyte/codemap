@@ -169,8 +169,11 @@ def recall(
         )
 
     code_context = _build_code_context(
-        ai_mem, matched_entities, top_k,
-        query=query, query_tokens=tokens,
+        ai_mem,
+        matched_entities,
+        top_k,
+        query=query,
+        query_tokens=tokens,
     )
 
     return {
@@ -367,12 +370,7 @@ def _precision_for_entity_id(
     if query_tokens:
         short_lower = short.lower()
         for tok in query_tokens:
-            if (
-                tok
-                and tok.isascii()
-                and len(tok) >= 2
-                and short_lower.startswith(tok)
-            ):
+            if tok and tok.isascii() and len(tok) >= 2 and short_lower.startswith(tok):
                 return "high"
 
     return "low"

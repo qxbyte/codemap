@@ -165,8 +165,7 @@ def test_chinese_query_with_ascii_acronym_token_marks_matching_entity_high(
             [
                 {"id": "cls-ItMember", "type": "class", "file": "ItMember.java"},
                 {"id": "cls-ItTicket", "type": "class", "file": "ItTicket.java"},
-                {"id": "cls-MonitoredRoom", "type": "class",
-                 "file": "MonitoredRoom.java"},
+                {"id": "cls-MonitoredRoom", "type": "class", "file": "MonitoredRoom.java"},
             ]
         ),
         encoding="utf-8",
@@ -210,25 +209,17 @@ def test_precision_helper_unit_chinese_query_with_acronym() -> None:
     from codemap_aimemory.recall import _precision_for_entity_id
 
     # Rule 2 hit
-    assert _precision_for_entity_id(
-        "cls-ItMember", set(), {"it", "工单"}
-    ) == "high"
+    assert _precision_for_entity_id("cls-ItMember", set(), {"it", "工单"}) == "high"
     # Rule 2 miss (doesn't startswith)
-    assert _precision_for_entity_id(
-        "cls-MonitoredRoom", set(), {"it", "工单"}
-    ) == "low"
+    assert _precision_for_entity_id("cls-MonitoredRoom", set(), {"it", "工单"}) == "low"
     # Tokens=None → original behavior (rule 1 then low)
     assert _precision_for_entity_id("cls-ItMember", set(), None) == "low"
     # Single-char token (len<2) → ignored
     assert _precision_for_entity_id("cls-ItMember", set(), {"i"}) == "low"
     # Chinese-only tokens (non-ascii) → ignored
-    assert _precision_for_entity_id(
-        "cls-ItMember", set(), {"工单", "指派"}
-    ) == "low"
+    assert _precision_for_entity_id("cls-ItMember", set(), {"工单", "指派"}) == "low"
     # Rule 1 takes priority over rule 2 (back-compat)
-    assert _precision_for_entity_id(
-        "cls-ItMember", {"ItMember"}, {"it"}
-    ) == "high"
+    assert _precision_for_entity_id("cls-ItMember", {"ItMember"}, {"it"}) == "high"
 
 
 def test_code_context_sorts_high_precision_first_then_by_churn(tmp_path: Path) -> None:
