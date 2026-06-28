@@ -110,8 +110,8 @@ codemap-aimemory 拥有 L0+L1;**L2+L3(`knowledge/`)来自
 | L0 `project.yml` | `codemap-aimemory`(本工具) | 每次 `codemap index` |
 | L1 `entities/*`、`relations/*`、`enrichment/*` | `codemap-aimemory`(本工具) | 每次 `codemap index`(enrichment 是 opt-in:`codemap enrich`) |
 | L1↔L2/L3 `_global/entities.yml` | `codemap-aimemory`(本工具) | 每次 `codemap index`,扫 `knowledge/*.yml`(若存在) |
-| L2/L3 `knowledge/{rules,business,modules,cases,pitfalls}/*.yml` | `specode-distill`(`pluginhub` 插件,specode 3.0+) | 用户运行 `/specode:specode-distill <slug>`,或在 specode acceptance 末尾选"立即沉淀" |
-| L3 `knowledge/cases/case-*.yml` + `knowledge/pitfalls/pit-*.yml` | `task-swarm`(`pluginhub` 插件,0.6+) | 每次 `task_swarm.py resolve` 成功收尾时自动 |
+| L2/L3 `knowledge/{rules,business,modules,cases,pitfalls}/*.yml` | `specode-distill`(`pluginhub` 插件,specode 3.0+；3.3.1 经 AI-EDS v0.9 痛点 #14 方案 D 把 `CLAUDE.md / AGENT.md` 路径写入 `requirements.md`) | 用户运行 `/specode:specode-distill <slug>`,或在 specode acceptance 末尾选"立即沉淀" |
+| L3 `knowledge/cases/case-*.yml` + `knowledge/pitfalls/pit-*.yml` | `task-swarm`(`pluginhub` 插件,0.7+ 通过 `codemap knowledge write` 写盘；0.7.3 在每个 subagent `task.md` 中列出 `CLAUDE.md / AGENT.md` 路径) | 每次 `task_swarm.py resolve` 成功收尾时自动 |
 
 每次 `specode-distill` / `task-swarm` 写入时**还会同步产出**一份双胞胎
 markdown:`<project_root>/knowledge-base/<category>/<id>.md`(与 yml

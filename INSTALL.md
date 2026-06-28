@@ -323,9 +323,9 @@ pattern):
 
 | Plugin | Min version | Writes to `<project_root>/` | When |
 |---|---|---|---|
-| `specode` | **3.1.0** | (only via specode-distill sub-skill below) | drives the spec lifecycle; requires codemap-aimemory 0.4.0+ for step-2.2 content injection (degrades gracefully) |
-| └─ `specode-distill` | (sub-skill of specode 3.0) | `.ai-memory/knowledge/{rules,business,modules,cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin) | user runs `/specode:specode-distill <slug>`, or accepts the prompt at end of specode's acceptance phase |
-| `task-swarm` | **0.6.0** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin) | every successful `task_swarm.py resolve` |
+| `specode` | **3.3.1** | (only via specode-distill sub-skill below) | drives the spec lifecycle; requires codemap-aimemory 0.4.3+ for step-2.2 content injection (FIX-2 `codemap knowledge write` rewire); 3.3.1 also surfaces project-level agent docs (CLAUDE.md / AGENT.md / AGENTS.md / CODEBUDDY.md) into requirements.md (AI-EDS v0.9 痛点 #14 方案 D) |
+| └─ `specode-distill` | (sub-skill of specode 3.0+) | `.ai-memory/knowledge/{rules,business,modules,cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin) | user runs `/specode:specode-distill <slug>`, or accepts the prompt at end of specode's acceptance phase |
+| `task-swarm` | **0.7.3** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin, written via `codemap knowledge write` since 0.7.0 / FIX-2) | every successful `task_swarm.py resolve`; 0.7.3 also inserts a `## 项目级约束（必读）` section into every coder / reviewer / validator `task.md` (痛点 #14 方案 D) |
 | `superpowers` | any | — (no `.ai-memory/` writes) | brainstorming / writing-plans skills called by specode |
 
 After install, the new slash commands:

@@ -292,9 +292,9 @@ Code 为例;Codex / Copilot CLI 同理):
 
 | 插件 | 最低版本 | 写入 `<project_root>/` | 触发时机 |
 |---|---|---|---|
-| `specode` | **3.1.0** | (仅通过下面的 specode-distill 子 skill) | 驱动 spec 全生命周期；step 2.2 内容注入需 codemap-aimemory 0.4.0+(无版本则降级为 wikilink 注入) |
-| └─ `specode-distill` | (specode 3.0 子 skill) | `.ai-memory/knowledge/{rules,business,modules,cases,pitfalls}/*.yml` + `knowledge-base/*.md`(双产) | 用户 `/specode:specode-distill <slug>`,或 specode acceptance 末尾选"是" |
-| `task-swarm` | **0.6.0** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md`(双产) | 每次 `task_swarm.py resolve` 成功收尾时自动 |
+| `specode` | **3.3.1** | (仅通过下面的 specode-distill 子 skill) | 驱动 spec 全生命周期；step 2.2 内容注入需 codemap-aimemory 0.4.3+(FIX-2 `codemap knowledge write` rewire)；3.3.1 经 AI-EDS v0.9 痛点 #14 方案 D 把项目级 `CLAUDE.md / AGENT.md / AGENTS.md / CODEBUDDY.md` 路径写入 `requirements.md` |
+| └─ `specode-distill` | (specode 3.0+ 子 skill) | `.ai-memory/knowledge/{rules,business,modules,cases,pitfalls}/*.yml` + `knowledge-base/*.md`(双产) | 用户 `/specode:specode-distill <slug>`,或 specode acceptance 末尾选"是" |
+| `task-swarm` | **0.7.3** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md`(双产；0.7.0 起 FIX-2 经 `codemap knowledge write` 写盘) | 每次 `task_swarm.py resolve` 成功收尾时自动；0.7.3 在每个 coder / reviewer / validator `task.md` 中加「## 项目级约束（必读）」段（痛点 #14 方案 D） |
 | `superpowers` | 任意 | — (不写 `.ai-memory/`) | specode 调它的 brainstorming / writing-plans 等 skill |
 
 装完后新增的 slash command:
