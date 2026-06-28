@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "codemap-ruby"
-version = "0.4.8"
+version = "0.4.9"
 description = "Ruby indexer plugin for CodeMap"
 readme = "README.md"
 requires-python = ">=3.11"
