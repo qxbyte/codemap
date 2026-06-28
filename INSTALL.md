@@ -323,9 +323,9 @@ pattern):
 
 | Plugin | Min version | Writes to `<project_root>/` | When |
 |---|---|---|---|
-| `specode` | **3.3.1** | (only via specode-distill sub-skill below) | drives the spec lifecycle; requires codemap-aimemory 0.4.3+ for step-2.2 content injection (FIX-2 `codemap knowledge write` rewire); 3.3.1 also surfaces project-level agent docs (CLAUDE.md / AGENT.md / AGENTS.md / CODEBUDDY.md) into requirements.md (AI-EDS v0.9 痛点 #14 方案 D) |
+| `specode` | **3.4.0** | (only via specode-distill sub-skill below) | drives the spec lifecycle; requires codemap-aimemory 0.4.3+ for step-2.2 content injection (FIX-2 `codemap knowledge write` rewire); 3.3.1 surfaces project-level agent docs (CLAUDE.md / AGENT.md / AGENTS.md / CODEBUDDY.md) into requirements.md (AI-EDS v0.9 痛点 #14 方案 D); 3.3.2 adds SessionStart cache-vs-marketplace drift hint; 3.4.0 adds autonomous-mode defaults (5 `SPECODE_*` env vars + `read-defaults` / `write-default` / `reset-default` verbs) so CI / unattended sessions don't deadlock on `AskUserQuestion` |
 | └─ `specode-distill` | (sub-skill of specode 3.0+) | `.ai-memory/knowledge/{rules,business,modules,cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin) | user runs `/specode:specode-distill <slug>`, or accepts the prompt at end of specode's acceptance phase |
-| `task-swarm` | **0.7.3** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin, written via `codemap knowledge write` since 0.7.0 / FIX-2) | every successful `task_swarm.py resolve`; 0.7.3 also inserts a `## 项目级约束（必读）` section into every coder / reviewer / validator `task.md` (痛点 #14 方案 D) |
+| `task-swarm` | **0.8.0** | `.ai-memory/knowledge/{cases,pitfalls}/*.yml` + `knowledge-base/*.md` (twin, written via `codemap knowledge write` since 0.7.0 / FIX-2) | every successful `task_swarm.py resolve`; 0.7.3 + 0.7.4 insert a `## 项目级约束（必读）` section into every coder / reviewer / validator `task.md` + drop `_PROJECT_AGENT_DOCS.md` inbox sentinel (痛点 #14 方案 D + M5/M6/M10); 0.8.0 adds `init` dedupe (`--on-existing {error/resume/abort-old/force-new}`) + `run.pipeline_end_validator` schema field (logic in 0.8.1) |
 | `superpowers` | any | — (no `.ai-memory/` writes) | brainstorming / writing-plans skills called by specode |
 
 After install, the new slash commands:
