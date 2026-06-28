@@ -103,6 +103,16 @@ def recall(
     dicts sorted by ranked score desc).
     """
     ai_mem = project_root / ".ai-memory"
+
+    # v0.9 痛点 #11 — apply query focus to ALL paths (not only --from-spec).
+    # FIX-3a's ``extract_query_focus`` was never wired in before, so long
+    # mixed-language queries (notably specode step 2.2 with full requirement
+    # text) bigram-exploded into 30+ tokens and matched 60+ false-positive
+    # entities. Short / already-structured queries pass through unchanged via
+    # the function's own len<80 fallback, so this is back-compat for every
+    # 0.4.x caller with a short query.
+    query = extract_query_focus(query)
+
     tokens = tokenize(query)
     matched_entities = _match_entities(ai_mem / "_global" / "entities.yml", tokens)
     code_change_map = load_code_change_map(ai_mem)
@@ -503,6 +513,15 @@ def extract_entities(text: str) -> list[str]:
     return entities
 
 
+#: When a query's body exceeds this many characters, prefer the focus-extracted
+#: form over the raw body even if the focus is short. v0.9 痛点 #11 — long
+#: Chinese-bigram queries had focus<80 and fell back to the raw body, defeating
+#: the whole point of FIX-3a. Threshold chosen so typical short queries
+#: ("TicketController updateStatus", ~30 chars) keep passing through unchanged
+#: while requirement.md bodies (always 100+ chars) get aggressively trimmed.
+_LONG_BODY_THRESHOLD = 100
+
+
 def extract_query_focus(text: str, max_chars: int = 1500) -> str:
     """Trim a whole spec document down to its salient retrieval signal.
 
@@ -510,21 +529,46 @@ def extract_query_focus(text: str, max_chars: int = 1500) -> str:
     default) token-explodes the bigram tokenizer so nearly everything matches
     and ranking degrades to noise (AI-EDS ISSUE-6). This keeps only the
     headings + entity-like tokens (table / class / api-path / FQN), dropping
-    the YAML frontmatter and prose filler. Falls back to the (capped) body
-    when too little structured signal is extracted, so short queries are
-    untouched.
+    the YAML frontmatter and prose filler.
+
+    Behaviour matrix (v0.9 痛点 #11 — body-length aware):
+
+    | body length        | focus signal       | output                       |
+    |--------------------|--------------------|------------------------------|
+    | < ``_LONG_BODY_THRESHOLD`` (short query) | short (< 80 chars) | body (back-compat passthrough) |
+    | < ``_LONG_BODY_THRESHOLD``               | rich              | focus                          |
+    | ≥ ``_LONG_BODY_THRESHOLD`` (long query)  | any non-empty     | focus (force-trim noise)       |
+    | ≥ ``_LONG_BODY_THRESHOLD``               | empty             | body (last resort)             |
     """
     if not text:
         return ""
     body = _FRONTMATTER_RE.sub("", text, count=1)
+    body_stripped = body.strip()
 
     headings = [ln.lstrip("#").strip() for ln in body.splitlines() if ln.lstrip().startswith("#")]
     entities = extract_entities(body)
 
     focus = "\n".join([*headings, *entities])
-    if len(focus.strip()) < 80:
-        return body.strip()[:max_chars]
-    return focus[:max_chars]
+    focus_stripped = focus.strip()
+
+    if len(body_stripped) < _LONG_BODY_THRESHOLD:
+        # Short / already-structured query: keep original behaviour — pass
+        # through unless focus is genuinely rich. Pins back-compat for every
+        # short-query caller.
+        if len(focus_stripped) < 80:
+            return body_stripped[:max_chars]
+        return focus[:max_chars]
+
+    # Long body: prefer focus even when it's short. The bigram explosion that
+    # focus is designed to prevent dominates long Chinese/mixed queries — a few
+    # entity-shaped tokens are a *better* recall signal than 300 chars of
+    # Chinese narrative bigram-flooding ``matched_entities``.
+    if focus_stripped:
+        return focus[:max_chars]
+    # Pathological case — long body but no headings and no entity-shaped
+    # tokens. Nothing to extract, fall back to body so the caller still has
+    # something to tokenize.
+    return body_stripped[:max_chars]
 
 
 def tokenize(text: str) -> set[str]:
