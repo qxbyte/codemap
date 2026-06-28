@@ -358,9 +358,16 @@ codemap recall '<query>' --with-content    # 0.4.0+:返回每个 hit 含核心�
 
 # 语义召回(opt-in,需要 codemap-semantic-index 0.1.0+)
 pipx inject codemap codemap-semantic-index   # 拉 sentence-transformers + torch
+
+# ⚠️ 国内强烈建议先设 HF 镜像 + Token,否则下模型会超时 / 0 字节卡死
+# 注册 HF 账号 → Settings → Access Tokens → 创建 Read token
+echo 'export HF_ENDPOINT=https://hf-mirror.com' >> ~/.zshrc   # 国内镜像
+echo 'export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxx' >> ~/.zshrc  # 你自己的 token,别贴公开
+source ~/.zshrc
+
 codemap embed install                         # 交互选模型,默认 Qwen3-Embedding-0.6B (1.2GB)
 codemap embed                                  # 增量 embed knowledge-base/*.md
-codemap embed backend set --provider qwen --api-key sk-xxx  # 切云端
+codemap embed backend set --provider qwen --api-key sk-xxx  # 或切云端千问/openai,不下任何模型
 # 之后 `codemap recall` 自动 hybrid token+embedding 双路召回(RRF 融合),无额外 flag
 
 # 喂给 AI agent 的结构化输出
