@@ -158,7 +158,7 @@ def recall(
             shared_roots=shared_roots,
         )
 
-    code_context = _build_code_context(ai_mem, matched_entities, top_k)
+    code_context = _build_code_context(ai_mem, matched_entities, top_k, query=query)
 
     return {
         "query": query,
@@ -226,12 +226,28 @@ def _scan_root(
 # ---------- code_context: cold-start L1 fallback (FIX-3b) ----------
 
 
-def _build_code_context(ai_mem: Path, matched_ids: list[str], top_k: int) -> list[dict[str, Any]]:
+def _build_code_context(
+    ai_mem: Path,
+    matched_ids: list[str],
+    top_k: int,
+    *,
+    query: str = "",
+) -> list[dict[str, Any]]:
     """Enrich the matched entity ids with their L1 structure (signature /
     callers / callees / related tables) and any knowledge_refs from _global.
 
     This is the bridge that makes the *first* spec on a project useful: even
     with an empty ``knowledge/``, the spec author sees the relevant code map.
+
+    v0.9 痛点 #2: each entry carries ``precision: 'high' | 'low'`` —
+    ``high`` when the entity's short name (after stripping the ``cls-`` /
+    ``fn-`` / ``tbl-`` / ``mod-`` / ``field-`` / ``route-`` / ``sym-``
+    prefix) precisely matches an entity-shaped token extracted from the
+    query (FQN suffix matching included, same logic as
+    ``entity_exact_hook``). Sort key promotes high precision ahead of
+    low, so when ``matched_entities`` flood with namesakes (e.g.
+    ``ItTicketMapper.updateStatus`` + ``MediaFileMapper.updateStatus``)
+    the genuinely-named ones surface first.
     """
     if not matched_ids:
         return []
@@ -248,9 +264,13 @@ def _build_code_context(ai_mem: Path, matched_ids: list[str], top_k: int) -> lis
 
     refs_by_id = _load_knowledge_refs(ai_mem / "_global" / "entities.yml")
 
+    # Build the precision lookup once from the query.
+    query_entities = set(extract_entities(query)) if query else set()
+
     out: list[dict[str, Any]] = []
     for eid in matched_ids:
         ent = by_id.get(eid, {})
+        precision = _precision_for_entity_id(eid, query_entities)
         entry: dict[str, Any] = {
             "id": eid,
             "type": ent.get("type"),
@@ -262,12 +282,49 @@ def _build_code_context(ai_mem: Path, matched_ids: list[str], top_k: int) -> lis
             "business_meaning": ent.get("business_meaning"),
             "change_count_90d": ent.get("change_count_90d"),
             "knowledge_refs": refs_by_id.get(eid, []),
+            "precision": precision,
         }
         out.append(entry)
 
-    # Most-churned entities first (likeliest hotspots), stable by id.
-    out.sort(key=lambda e: (-(e.get("change_count_90d") or 0), e["id"]))
+    # Sort: high-precision first; then most-churned (likeliest hotspots);
+    # finally stable by id.
+    out.sort(
+        key=lambda e: (
+            0 if e["precision"] == "high" else 1,
+            -(e.get("change_count_90d") or 0),
+            e["id"],
+        )
+    )
     return out[:top_k]
+
+
+_ID_PREFIX_RE = re.compile(r"^(cls|fn|tbl|mod|field|route|sym)-")
+
+
+def _precision_for_entity_id(entity_id: str, query_entities: set[str]) -> str:
+    """Return ``'high'`` if ``entity_id``'s short name (after stripping the
+    type prefix) is in ``query_entities`` directly OR via FQN suffix
+    matching. Otherwise ``'low'``.
+
+    Mirrors ``entity_exact_hook._entity_match`` (FQN suffix bidirectional)
+    so the two code paths agree on what counts as a precision match.
+    """
+    if not query_entities:
+        return "low"
+    short = _ID_PREFIX_RE.sub("", entity_id, count=1)
+    # Strip the collision-disambiguating ``-<8hex>`` suffix that
+    # ``entities/ids.py`` appends when two entities share the same prefix
+    # + short name. Otherwise ``fn-updateStatus-4f6656b5`` would never
+    # match query token ``updateStatus``.
+    short = re.sub(r"-[0-9a-f]{8}$", "", short)
+    for q in query_entities:
+        if q == short:
+            return "high"
+        if "." in q and q.rsplit(".", 1)[-1] == short:
+            return "high"
+        if "." in short and short.rsplit(".", 1)[-1] == q:
+            return "high"
+    return "low"
 
 
 def _load_knowledge_refs(path: Path) -> dict[str, list[str]]:
@@ -421,7 +478,8 @@ _FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 _ENTITY_RES = (
     re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+"),  # dotted FQN
     re.compile(r"/[A-Za-z0-9_][A-Za-z0-9_/{}-]*"),  # api path
-    re.compile(r"[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+"),  # CamelCase
+    re.compile(r"[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+"),  # CamelCase / PascalCase
+    re.compile(r"\b[a-z][a-z0-9]+(?:[A-Z][a-z0-9]+)+"),  # camelCase (lower-first; v0.9 #2)
     re.compile(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)+"),  # snake_case
 )
 
