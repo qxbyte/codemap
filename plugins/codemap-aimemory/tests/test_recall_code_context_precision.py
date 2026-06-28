@@ -107,27 +107,119 @@ def test_code_context_marks_precision_when_query_entity_matches(tmp_path: Path) 
 
 def test_code_context_substring_only_match_marked_low_precision(tmp_path: Path) -> None:
     """When the query has no entity-shaped token matching a candidate's short
-    name, that candidate is precision=low even if it appeared in
-    matched_entities via fuzzy substring."""
+    name AND no ascii-startswith fallback either, that candidate is precision=low
+    even if it appeared in matched_entities via fuzzy substring."""
     _seed_with_dup_named_methods(tmp_path)
 
     # Query has neither 'TicketController' nor 'updateStatus' as entity tokens
-    # (just lowercase noise words that substring-hit). matched_entities will
-    # still flood, but precision should reflect the lack of exact match.
+    # (just lowercase noise words). Each lowercase word IS an ascii token but
+    # none startswith candidate short names ('TicketController' / 'updateStatus'
+    # lowercased = 'ticketcontroller' / 'updatestatus'); 'status' / 'ticket' /
+    # 'update' don't startswith those.
     result = recall(
-        query="status ticket update",  # all lowercase, no CamelCase
+        query="abc xyz qrs",  # nonsense ascii tokens that don't startswith anything
         project_root=tmp_path,
         top_k=5,
     )
     ctx = result["code_context"]
     if ctx:
-        # Nothing in this query is entity-shape → no candidate should be
-        # high precision.
         precisions = {e["precision"] for e in ctx}
         assert "high" not in precisions, (
-            f"got {precisions} — query has no CamelCase/FQN/api/snake "
-            f"entity-shape tokens, nothing should be high"
+            f"got {precisions} — nonsense ascii tokens shouldn't trigger "
+            f"startswith match for any candidate"
         )
+
+
+def test_chinese_query_with_ascii_acronym_token_marks_matching_entity_high(
+    tmp_path: Path,
+) -> None:
+    """v0.9 痛点 #4 (real BUG found in 2026-06-28 ticket-assign-it-member try-run):
+
+    Chinese query like ``'工单指派 IT 成员'`` — ``IT`` is a 2-letter acronym
+    not matching the multi-hump CamelCase regex; ``extract_entities`` returns
+    empty → ``query_entities`` empty → original logic standlone marks
+    *everything* low, collapsing the precision-based sort.
+
+    Fix: ascii-token startswith fallback marks ``ItMember`` high (its short
+    name lowercased starts with the ``it`` token) while ``MonitoredRoom``
+    stays low — the actual disambiguation intent is preserved.
+    """
+    ai_mem = tmp_path / ".ai-memory"
+    (ai_mem / "_global").mkdir(parents=True)
+    (ai_mem / "entities").mkdir(parents=True)
+
+    (ai_mem / "_global" / "entities.yml").write_text(
+        yaml.safe_dump(
+            {
+                "entities": [
+                    {"id": "cls-ItMember", "type": "class", "source": "code"},
+                    {"id": "cls-ItTicket", "type": "class", "source": "code"},
+                    {"id": "cls-MonitoredRoom", "type": "class", "source": "code"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (ai_mem / "entities" / "functions.yml").write_text(
+        yaml.safe_dump(
+            [
+                {"id": "cls-ItMember", "type": "class", "file": "ItMember.java"},
+                {"id": "cls-ItTicket", "type": "class", "file": "ItTicket.java"},
+                {"id": "cls-MonitoredRoom", "type": "class", "file": "MonitoredRoom.java"},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (ai_mem / "entities" / "files.yml").write_text("[]", encoding="utf-8")
+    (ai_mem / "entities" / "tables.yml").write_text("[]", encoding="utf-8")
+    (ai_mem / "entities" / "modules.yml").write_text("[]", encoding="utf-8")
+
+    result = recall(
+        query="工单指派 IT 成员",
+        project_root=tmp_path,
+        top_k=5,
+    )
+    ctx = result["code_context"]
+    by_id = {e["id"]: e for e in ctx}
+
+    # ItMember / ItTicket lowercased start with 'it' token → high
+    assert by_id.get("cls-ItMember", {}).get("precision") == "high", (
+        "ItMember should be high — its short name starts with the 'it' ascii "
+        "token from the query (v0.9 痛点 #4 fix)"
+    )
+    assert by_id.get("cls-ItTicket", {}).get("precision") == "high", (
+        "ItTicket should be high — same ascii-startswith reason"
+    )
+    # MonitoredRoom doesn't startswith any query token → low
+    if "cls-MonitoredRoom" in by_id:
+        assert by_id["cls-MonitoredRoom"]["precision"] == "low", (
+            "MonitoredRoom should stay low — its short name doesn't start with "
+            "'it' or any other ascii query token"
+        )
+
+
+def test_precision_helper_unit_chinese_query_with_acronym() -> None:
+    """Direct unit on _precision_for_entity_id covering rule 2 (ascii startswith
+    fallback). Pins the matrix:
+    - empty query_entities + 'it' in tokens → ItMember high
+    - empty query_entities + 'it' in tokens → MonitoredRoom low
+    - empty query_entities + tokens=None → low (back-compat)
+    - non-ascii token (Chinese bigram) doesn't trigger startswith
+    """
+    from codemap_aimemory.recall import _precision_for_entity_id
+
+    # Rule 2 hit
+    assert _precision_for_entity_id("cls-ItMember", set(), {"it", "工单"}) == "high"
+    # Rule 2 miss (doesn't startswith)
+    assert _precision_for_entity_id("cls-MonitoredRoom", set(), {"it", "工单"}) == "low"
+    # Tokens=None → original behavior (rule 1 then low)
+    assert _precision_for_entity_id("cls-ItMember", set(), None) == "low"
+    # Single-char token (len<2) → ignored
+    assert _precision_for_entity_id("cls-ItMember", set(), {"i"}) == "low"
+    # Chinese-only tokens (non-ascii) → ignored
+    assert _precision_for_entity_id("cls-ItMember", set(), {"工单", "指派"}) == "low"
+    # Rule 1 takes priority over rule 2 (back-compat)
+    assert _precision_for_entity_id("cls-ItMember", {"ItMember"}, {"it"}) == "high"
 
 
 def test_code_context_sorts_high_precision_first_then_by_churn(tmp_path: Path) -> None:
