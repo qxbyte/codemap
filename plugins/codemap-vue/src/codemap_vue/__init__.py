@@ -9,5 +9,6 @@ from __future__ import annotations
 
 from codemap_vue.indexer import VueIndexer
 
-__all__ = ["VueIndexer"]
-__version__ = "0.2.0a1"
+__version__ = VueIndexer.version
+
+__all__ = ["VueIndexer", "__version__"]

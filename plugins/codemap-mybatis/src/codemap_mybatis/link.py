@@ -24,13 +24,14 @@ from typing import Any, ClassVar
 from codemap.core.models import BridgeResult, Edge
 from codemap.core.store import ReadOnlyStore
 from codemap.core.symbol import DescriptorKind, SymbolID
+from codemap.plugin_metadata import package_version
 
 __all__ = ["MyBatisLinkBridge"]
 
 
 class MyBatisLinkBridge:
     name: ClassVar[str] = "mybatis_link"
-    version: ClassVar[str] = "0.1.0"
+    version: ClassVar[str] = package_version("codemap-mybatis")
     requires: ClassVar[list[str]] = []
 
     def resolve(self, store: ReadOnlyStore) -> BridgeResult:

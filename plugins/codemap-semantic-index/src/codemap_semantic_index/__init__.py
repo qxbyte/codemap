@@ -10,4 +10,8 @@ Registers via two entry-point groups:
   the result with token recall + freshness.
 """
 
-__version__ = "0.1.0"
+from codemap.plugin_metadata import package_version
+
+__version__ = package_version("codemap-semantic-index")
+
+__all__ = ["__version__"]

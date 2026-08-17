@@ -4,5 +4,6 @@ from __future__ import annotations
 
 from codemap_scala.indexer import ScalaIndexer
 
-__all__ = ["ScalaIndexer"]
-__version__ = "0.1.0"
+__version__ = ScalaIndexer.version
+
+__all__ = ["ScalaIndexer", "__version__"]

@@ -9,5 +9,6 @@ from __future__ import annotations
 
 from codemap_typescript.indexer import TypeScriptIndexer
 
-__all__ = ["TypeScriptIndexer"]
-__version__ = "0.1.0"
+__version__ = TypeScriptIndexer.version
+
+__all__ = ["TypeScriptIndexer", "__version__"]

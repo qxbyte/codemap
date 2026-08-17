@@ -4,5 +4,6 @@ from __future__ import annotations
 
 from codemap_ruby.indexer import RubyIndexer
 
-__all__ = ["RubyIndexer"]
-__version__ = "0.1.0"
+__version__ = RubyIndexer.version
+
+__all__ = ["RubyIndexer", "__version__"]

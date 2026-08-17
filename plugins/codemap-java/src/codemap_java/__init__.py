@@ -4,5 +4,6 @@ from __future__ import annotations
 
 from codemap_java.indexer import JavaIndexer
 
-__all__ = ["JavaIndexer"]
-__version__ = "0.1.0"
+__version__ = JavaIndexer.version
+
+__all__ = ["JavaIndexer", "__version__"]

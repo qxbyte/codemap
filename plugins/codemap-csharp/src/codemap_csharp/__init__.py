@@ -4,5 +4,6 @@ from __future__ import annotations
 
 from codemap_csharp.indexer import CSharpIndexer
 
-__all__ = ["CSharpIndexer"]
-__version__ = "0.1.0"
+__version__ = CSharpIndexer.version
+
+__all__ = ["CSharpIndexer", "__version__"]

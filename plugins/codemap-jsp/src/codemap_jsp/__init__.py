@@ -9,5 +9,6 @@ from __future__ import annotations
 
 from codemap_jsp.indexer import JspIndexer
 
-__all__ = ["JspIndexer"]
-__version__ = "0.2.0a1"
+__version__ = JspIndexer.version
+
+__all__ = ["JspIndexer", "__version__"]

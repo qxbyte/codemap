@@ -18,6 +18,7 @@ import tree_sitter_go
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
+from codemap.plugin_metadata import package_version
 
 SCHEME = "scip-go"
 LANG = "go"
@@ -27,7 +28,7 @@ _GO_LANG = tree_sitter.Language(tree_sitter_go.language())
 
 class GoIndexer:
     name: ClassVar[str] = "go"
-    version: ClassVar[str] = "0.1.0"
+    version: ClassVar[str] = package_version("codemap-go")
     file_patterns: ClassVar[list[str]] = ["*.go"]
     languages: ClassVar[list[str]] = [LANG]
 

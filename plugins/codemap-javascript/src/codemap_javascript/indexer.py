@@ -21,6 +21,7 @@ import tree_sitter_javascript
 from codemap.core.models import Diagnostic, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
+from codemap.plugin_metadata import package_version
 
 SCHEME = "scip-javascript"
 LANG = "javascript"
@@ -30,7 +31,7 @@ _JS_LANG = tree_sitter.Language(tree_sitter_javascript.language())
 
 class JavaScriptIndexer:
     name: ClassVar[str] = "javascript"
-    version: ClassVar[str] = "0.2.0"
+    version: ClassVar[str] = package_version("codemap-javascript")
     file_patterns: ClassVar[list[str]] = ["*.js", "*.jsx", "*.mjs", "*.cjs"]
     languages: ClassVar[list[str]] = [LANG]
 

@@ -9,5 +9,6 @@ from __future__ import annotations
 
 from codemap_javascript.indexer import JavaScriptIndexer
 
-__all__ = ["JavaScriptIndexer"]
-__version__ = "0.2.0a1"
+__version__ = JavaScriptIndexer.version
+
+__all__ = ["JavaScriptIndexer", "__version__"]

@@ -4,5 +4,6 @@ from __future__ import annotations
 
 from codemap_sql.indexer import SqlIndexer
 
-__all__ = ["SqlIndexer"]
-__version__ = "0.1.0"
+__version__ = SqlIndexer.version
+
+__all__ = ["SqlIndexer", "__version__"]

@@ -4,5 +4,6 @@ from __future__ import annotations
 
 from codemap_bash.indexer import BashIndexer
 
-__all__ = ["BashIndexer"]
-__version__ = "0.1.0"
+__version__ = BashIndexer.version
+
+__all__ = ["BashIndexer", "__version__"]

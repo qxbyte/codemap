@@ -2,4 +2,6 @@
 
 from codemap_aimemory.emitter import AiMemoryEmitter
 
-__all__ = ["AiMemoryEmitter"]
+__version__ = AiMemoryEmitter.version
+
+__all__ = ["AiMemoryEmitter", "__version__"]

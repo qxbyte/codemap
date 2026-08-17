@@ -17,6 +17,7 @@ import tree_sitter_swift
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
+from codemap.plugin_metadata import package_version
 
 SCHEME = "scip-swift"
 LANG = "swift"
@@ -26,7 +27,7 @@ _SWIFT_LANG = tree_sitter.Language(tree_sitter_swift.language())
 
 class SwiftIndexer:
     name: ClassVar[str] = "swift"
-    version: ClassVar[str] = "0.1.0"
+    version: ClassVar[str] = package_version("codemap-swift")
     file_patterns: ClassVar[list[str]] = ["*.swift"]
     languages: ClassVar[list[str]] = [LANG]
 
