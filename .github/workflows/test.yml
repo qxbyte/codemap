@@ -67,3 +67,71 @@ jobs:
 
       - name: smoke test
         run: .venv/bin/codemap index tests/fixtures/smoke
+
+  package:
+    name: package · ${{ matrix.package.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        package:
+          - { name: codemap-core,       dir: "." }
+          - { name: codemap-typescript, dir: "plugins/codemap-typescript" }
+          - { name: codemap-java,       dir: "plugins/codemap-java" }
+          - { name: codemap-go,         dir: "plugins/codemap-go" }
+          - { name: codemap-rust,       dir: "plugins/codemap-rust" }
+          - { name: codemap-swift,      dir: "plugins/codemap-swift" }
+          - { name: codemap-kotlin,     dir: "plugins/codemap-kotlin" }
+          - { name: codemap-ruby,       dir: "plugins/codemap-ruby" }
+          - { name: codemap-php,        dir: "plugins/codemap-php" }
+          - { name: codemap-sql,        dir: "plugins/codemap-sql" }
+          - { name: codemap-bash,       dir: "plugins/codemap-bash" }
+          - { name: codemap-c,          dir: "plugins/codemap-c" }
+          - { name: codemap-cpp,        dir: "plugins/codemap-cpp" }
+          - { name: codemap-csharp,     dir: "plugins/codemap-csharp" }
+          - { name: codemap-scala,      dir: "plugins/codemap-scala" }
+          - { name: codemap-javascript, dir: "plugins/codemap-javascript" }
+          - { name: codemap-vue,        dir: "plugins/codemap-vue" }
+          - { name: codemap-jsp,        dir: "plugins/codemap-jsp" }
+          - { name: codemap-mybatis,    dir: "plugins/codemap-mybatis" }
+          - { name: codemap-aimemory,   dir: "plugins/codemap-aimemory" }
+          - { name: codemap-semantic-index, dir: "plugins/codemap-semantic-index" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - name: Install Python 3.12
+        run: uv python install 3.12
+
+      - name: Create venv and install core tooling
+        run: |
+          uv venv --python 3.12 .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
+
+      - name: Install plugin
+        if: matrix.package.dir != '.'
+        run: uv pip install --python .venv/bin/python -e "${{ matrix.package.dir }}[dev]"
+
+      - name: Test plugin
+        if: matrix.package.dir != '.'
+        run: |
+          cd "${{ matrix.package.dir }}"
+          "$GITHUB_WORKSPACE/.venv/bin/python" -m pytest -o addopts='' tests
+
+      - name: Build sdist and wheel
+        working-directory: ${{ matrix.package.dir }}
+        run: |
+          rm -rf dist
+          "$GITHUB_WORKSPACE/.venv/bin/python" -m build
+
+      - name: Validate distributions
+        working-directory: ${{ matrix.package.dir }}
+        run: |
+          "$GITHUB_WORKSPACE/.venv/bin/twine" check dist/*

@@ -46,6 +46,12 @@ def test_publish_matrix_matches_repository_packages() -> None:
     assert _workflow_packages("publish.yml", "publish") == expected
 
 
+def test_test_workflow_preflights_publish_matrix() -> None:
+    assert _workflow_packages("test.yml", "package") == _workflow_packages(
+        "publish.yml", "publish"
+    )
+
+
 def test_release_uses_expected_version_groups() -> None:
     actual = {name: project["version"] for name, _path, project in _package_projects()}
     expected = {
