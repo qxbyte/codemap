@@ -9,10 +9,10 @@ CodeMap 为代码库构建一份**确定性**的、基于 AST 的索引,让 AI A
 路由映射与跨文件关联。索引过程是静态的、快速的、可复现的 —— **索引
 路径上不依赖任何 LLM**。
 
-**状态**:0.3.1 稳定版。已发布到 PyPI,主包名 `codemap-core`,
-另含 17 个 `codemap-<lang>` 语言插件 + 2 个框架/输出插件
-(`codemap-mybatis`、`codemap-aimemory`,0.3.0 新增;
-0.3.1 加 `codemap llm config` CLI 与国产模型 endpoint 速查)。
+**状态**:0.4.10 稳定版。已发布到 PyPI,主包名 `codemap-core`,
+另含 20 个插件:17 个 `codemap-<lang>` 语言插件、
+`codemap-mybatis`、`codemap-aimemory`,以及可选的
+`codemap-semantic-index` 语义排序插件。
 
 ## 产物说明
 
@@ -328,7 +328,7 @@ pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/code
 ## 验证
 
 ```bash
-codemap --version      # → 0.1.0
+codemap --version      # → 0.4.10
 codemap --help         # 显示全局选项与子命令
 codemap doctor         # 列出已注册的 indexer / bridge,以及 .codemap/ 状态
 ```
@@ -337,7 +337,7 @@ codemap doctor         # 列出已注册的 indexer / bridge,以及 .codemap/ �
 
 ```
 $ codemap doctor
-CodeMap 0.1.0
+CodeMap 0.4.10
 project_root: /your/path
 
                    Registered indexers

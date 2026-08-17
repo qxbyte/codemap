@@ -36,10 +36,10 @@ Implement
 
 ```python
 class Indexer(Protocol):
-    name: ClassVar[str]            # unique short id ('typescript', 'go', ...)
-    version: ClassVar[str]         # plugin version, independent of CodeMap
+    name: ClassVar[str]  # unique short id ('typescript', 'go', ...)
+    version: ClassVar[str]  # plugin version, independent of CodeMap
     file_patterns: ClassVar[list[str]]  # ['*.ts', '*.tsx']
-    languages: ClassVar[list[str]]      # ['typescript']
+    languages: ClassVar[list[str]]  # ['typescript']
 
     def supports(self, path: Path) -> bool: ...
     def index_file(

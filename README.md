@@ -11,10 +11,10 @@ mappings, and cross-file relationships without grepping the entire
 project. Indexing is static, fast, and reproducible — no LLM in the
 index path.
 
-**Status**: 0.3.1 stable. Installable from PyPI as `codemap-core`
-plus 17 `codemap-<lang>` plugins + 2 framework / output plugins
-(`codemap-mybatis`, `codemap-aimemory`, added in 0.3.0; 0.3.1
-adds the `codemap llm config` CLI).
+**Status**: 0.4.10 stable. Installable from PyPI as `codemap-core`
+plus 20 plugins: 17 `codemap-<lang>` language plugins,
+`codemap-mybatis`, `codemap-aimemory`, and the opt-in
+`codemap-semantic-index` ranker.
 
 > 👉 **In a hurry?** The [`INSTALL.md`](./INSTALL.md) guide is the
 > definitive walkthrough — it covers `pipx` / `uv tool` / `pip`,
@@ -183,7 +183,7 @@ pip install "git+https://github.com/qxbyte/codemap.git#subdirectory=plugins/code
 ## Verify
 
 ```bash
-codemap --version      # → 0.1.0
+codemap --version      # → 0.4.10
 codemap --help         # list global flags + subcommands
 codemap doctor         # show registered indexers, bridges, and `.codemap/` state
 ```
@@ -192,7 +192,7 @@ A successful install with the TypeScript plugin should look like:
 
 ```
 $ codemap doctor
-CodeMap 0.1.0
+CodeMap 0.4.10
 project_root: /your/path
 
                    Registered indexers

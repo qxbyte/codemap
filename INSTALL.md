@@ -2,12 +2,10 @@
 
 **English** · [简体中文](./INSTALL.zh-CN.md)
 
-> As of **0.3.1** (2026-06-25), CodeMap is published to PyPI under the
-> distribution names `codemap-core` (main), `codemap-<lang>` (17
-> language plugins), and `codemap-mybatis` / `codemap-aimemory` (new
-> in 0.3.0 — framework awareness + four-layer memory model L1 output).
-> 0.3.1 adds the `codemap llm config` CLI for persisting LLM api-key /
-> base-url, plus a docs section on Chinese / open-source LLM endpoints.
+> As of **0.4.10** (2026-08-17), CodeMap is published to PyPI under the
+> distribution names `codemap-core` (main) plus 20 plugins: 17
+> `codemap-<lang>` language plugins, `codemap-mybatis`,
+> `codemap-aimemory`, and the opt-in `codemap-semantic-index` ranker.
 > The instructions below use PyPI as the primary
 > install source; the [Install from git](#28-install-from-git-track-main-pin-to-a-commit)
 > section retains the older `git+https://…` form for users who need to
@@ -172,7 +170,7 @@ pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
 
 ```bash
 codemap --version
-# → 0.1.0
+# → 0.4.10
 
 codemap --help        # global flags and subcommand list
 
@@ -388,7 +386,7 @@ codemap recall '<query>' --with-content    # 0.4.0+: include rule/pit/case core 
 # Each hit since 0.4.0 carries freshness_score / ranked_score / stale —
 # fresher knowledge outranks stale at the same token score.
 
-# Semantic recall (opt-in, requires codemap-semantic-index 0.1.0+)
+# Semantic recall (opt-in, requires codemap-semantic-index 0.2.3+)
 pipx inject codemap codemap-semantic-index   # pulls sentence-transformers + torch
 
 # ⚠️ If you're in mainland China (or any restricted-egress network),

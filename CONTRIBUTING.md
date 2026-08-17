@@ -32,6 +32,7 @@ A language indexer is an entry_point-registered class implementing `codemap.inde
 from codemap.indexers.base import Indexer, IndexResult, IndexContext
 from pathlib import Path
 
+
 class MyLangIndexer:
     name = "my_lang"
     version = "0.1.0"
@@ -68,6 +69,7 @@ A bridge resolves cross-scheme relationships after all indexers finish:
 ```python
 from codemap.core.bridge.base import Bridge, BridgeResult
 from codemap.io.base import ReadOnlyStore
+
 
 class MyBridge:
     name = "my_bridge"

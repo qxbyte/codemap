@@ -1,6 +1,6 @@
 from importlib.metadata import PackageNotFoundError
 
-import codemap.plugin_metadata as plugin_metadata
+from codemap import plugin_metadata
 
 
 def test_package_version_reads_distribution_metadata(monkeypatch) -> None:

@@ -2,8 +2,10 @@
 
 [English](./INSTALL.md) · **简体中文**
 
-> **0.1.0**(2026-06-03)起,CodeMap 已发布到 PyPI,主包名
-> `codemap-core`,另含 14 个 `codemap-<lang>` 语言插件。下面命令默认
+> **0.4.10**(2026-08-17)起,CodeMap 在 PyPI 的完整发行矩阵包括
+> `codemap-core` 主包和 20 个插件:17 个 `codemap-<lang>` 语言插件、
+> `codemap-mybatis`、`codemap-aimemory` 和可选的
+> `codemap-semantic-index` 语义排序插件。下面命令默认
 > 以 PyPI 为安装来源;[从 git 安装](#28-从-git-安装跟随-main--锁定-commit)
 > 一节保留旧的 `git+https://…` 方式,适合需要跟 `main` 或锁定
 > commit 的用户。文末 [验证日志](#7-验证日志) 是 2026-05-30 那次
@@ -160,7 +162,7 @@ pipx install "git+https://github.com/qxbyte/codemap.git#egg=codemap[watch]"
 
 ```bash
 codemap --version
-# → 0.1.0
+# → 0.4.10
 
 codemap --help        # 全局选项 + 子命令列表
 
@@ -356,7 +358,7 @@ codemap recall '<query>' --with-content    # 0.4.0+:返回每个 hit 含核心�
 # 0.4.0 起每个 hit 都带 freshness_score / ranked_score / stale,
 # fresh hit 在同 token score 时排在 stale 前面。
 
-# 语义召回(opt-in,需要 codemap-semantic-index 0.1.0+)
+# 语义召回(opt-in,需要 codemap-semantic-index 0.2.3+)
 pipx inject codemap codemap-semantic-index   # 拉 sentence-transformers + torch
 
 # ⚠️ 国内强烈建议先设 HF 镜像 + Token,否则下模型会超时 / 0 字节卡死

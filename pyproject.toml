@@ -132,6 +132,7 @@ select = [
 ignore = [
     "E501",               # line length handled by formatter
     "PLR0913",            # too many args (allowed for public APIs)
+    "PLR0917",            # too many positional args (Typer/public API signatures)
     "PLR2004",            # magic number in tests
     "PLR0911",            # too many returns — judgement call per function
     "PLR0912",            # too many branches — same
