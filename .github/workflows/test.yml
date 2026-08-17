@@ -94,9 +94,9 @@ jobs:
           - { name: codemap-javascript, dir: "plugins/codemap-javascript" }
           - { name: codemap-vue,        dir: "plugins/codemap-vue" }
           - { name: codemap-jsp,        dir: "plugins/codemap-jsp" }
-          - { name: codemap-mybatis,    dir: "plugins/codemap-mybatis" }
+          - { name: codemap-mybatis,    dir: "plugins/codemap-mybatis", local_deps: "plugins/codemap-java" }
           - { name: codemap-aimemory,   dir: "plugins/codemap-aimemory" }
-          - { name: codemap-semantic-index, dir: "plugins/codemap-semantic-index" }
+          - { name: codemap-semantic-index, dir: "plugins/codemap-semantic-index", local_deps: "plugins/codemap-aimemory" }
     steps:
       - uses: actions/checkout@v4
 
@@ -114,6 +114,10 @@ jobs:
         run: |
           uv venv --python 3.12 .venv
           uv pip install --python .venv/bin/python -e ".[dev]"
+
+      - name: Install local plugin dependencies
+        if: matrix.package.local_deps != null
+        run: uv pip install --python .venv/bin/python -e "${{ matrix.package.local_deps }}"
 
       - name: Install plugin
         if: matrix.package.dir != '.'
