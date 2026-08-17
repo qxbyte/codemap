@@ -3,6 +3,18 @@
 This plugin's version is **independent** of `codemap-core` lockstep —
 it's an opt-in semantic ranker, not part of the L1 indexing core.
 
+## 0.2.3 (2026-08-17)
+
+### Fixed
+
+- `codemap_semantic_index.__version__` now reads the installed distribution
+  metadata instead of returning the stale `0.1.0` literal.
+
+### Quality
+
+- Joined the repository-wide release contract and package preflight that test,
+  build, and validate all 21 CodeMap distributions before publication.
+
 ## 0.1.0 (2026-06-27)
 
 First release. Closes AI-EDS roadmap **P1-3**.

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "codemap-aimemory"
-version = "0.4.9"
+version = "0.4.10"
 description = "Emit the four-layer memory model's L1 (.ai-memory/) from a CodeMap index"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,7 +17,7 @@ classifiers = [
     "Topic :: Software Development",
 ]
 dependencies = [
-    "codemap-core>=0.3.0,<0.4",
+    "codemap-core>=0.4.0,<0.5",
     "pyyaml>=6.0",
     # httpx[socks] pulls in socksio so users behind a SOCKS proxy
     # (e.g. China clash/v2ray default 127.0.0.1:7890 SOCKS5) don't

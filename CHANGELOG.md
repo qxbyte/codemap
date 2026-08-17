@@ -8,6 +8,27 @@ During `0.x`, MINOR may introduce breaking changes — they will be marked `BREA
 
 ## [Unreleased]
 
+## [0.4.10] — 2026-08-17
+
+### Fixed
+
+- Repaired all 19 lockstep plugins' core compatibility range from the stale
+  `codemap-core>=0.3.0,<0.4` constraint to `codemap-core>=0.4.0,<0.5`. The old
+  metadata made every `0.4.x` plugin release impossible to install alongside
+  its matching core release.
+- Plugin packages and registered components now report the installed
+  distribution version instead of historical `0.1.0` / `0.2.0` literals.
+
+### Quality
+
+- Added release metadata contracts covering all 21 distributions, including
+  publish-matrix parity, version groups, unique names, and core dependency
+  compatibility.
+- Added one runtime version contract to every plugin suite so package and
+  component versions cannot drift from wheel metadata.
+- Added per-package CI preflight for isolated plugin tests, wheel/sdist builds,
+  and `twine check` before publication.
+
 ## [0.4.9] — 2026-06-28
 
 ### Fixed — `codemap-aimemory` append-only path 不更新空主字段 (round 4 试跑发现的 rule body 丢失 bug)
