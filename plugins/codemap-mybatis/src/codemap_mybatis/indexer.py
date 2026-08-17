@@ -25,7 +25,7 @@ from typing import ClassVar
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_mybatis._version import __version__
 from codemap_mybatis.sql_tables import table_refs
 
 __all__ = ["SCHEME_MAPPING", "SCHEME_TABLE", "MyBatisIndexer"]
@@ -42,7 +42,7 @@ _SUBSTITUTION_RE = re.compile(r"\$\{")
 
 class MyBatisIndexer:
     name: ClassVar[str] = "mybatis"
-    version: ClassVar[str] = package_version("codemap-mybatis")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.xml"]
     languages: ClassVar[list[str]] = [LANG_MYBATIS]
 

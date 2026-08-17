@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
+from codemap_java._version import __version__
 from codemap_java.indexer import JavaIndexer
-
-__version__ = JavaIndexer.version
 
 __all__ = ["JavaIndexer", "__version__"]

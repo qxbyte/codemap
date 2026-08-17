@@ -16,7 +16,7 @@ import tree_sitter_c_sharp
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_csharp._version import __version__
 
 SCHEME = "scip-csharp"
 LANG = "csharp"
@@ -35,7 +35,7 @@ _TYPE_DECL_KINDS = {
 
 class CSharpIndexer:
     name: ClassVar[str] = "csharp"
-    version: ClassVar[str] = package_version("codemap-csharp")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.cs", "*.csx"]
     languages: ClassVar[list[str]] = [LANG]
 

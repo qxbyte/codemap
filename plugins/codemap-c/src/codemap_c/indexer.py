@@ -23,7 +23,7 @@ import tree_sitter_c
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_c._version import __version__
 
 SCHEME = "scip-c"
 LANG = "c"
@@ -33,7 +33,7 @@ _C_LANG = tree_sitter.Language(tree_sitter_c.language())
 
 class CIndexer:
     name: ClassVar[str] = "c"
-    version: ClassVar[str] = package_version("codemap-c")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.c", "*.h"]
     languages: ClassVar[list[str]] = [LANG]
 

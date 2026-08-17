@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
+from codemap_cpp._version import __version__
 from codemap_cpp.indexer import CppIndexer
-
-__version__ = CppIndexer.version
 
 __all__ = ["CppIndexer", "__version__"]

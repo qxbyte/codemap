@@ -36,7 +36,7 @@ import tree_sitter_java
 from codemap.core.models import Diagnostic, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_jsp._version import __version__
 from codemap_jsp.sfc import JspDeclaration, JspExtract, extract
 
 SCHEME = "scip-jsp"
@@ -52,7 +52,7 @@ _JSP_HTTP_CLIENT_EXTRA_KEY = "http_client_calls"
 
 class JspIndexer:
     name: ClassVar[str] = "jsp"
-    version: ClassVar[str] = package_version("codemap-jsp")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.jsp", "*.jspx", "*.tag", "*.tagx"]
     languages: ClassVar[list[str]] = [LANG]
 

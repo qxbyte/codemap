@@ -7,8 +7,7 @@ host CodeMap CLI.
 
 from __future__ import annotations
 
+from codemap_typescript._version import __version__
 from codemap_typescript.indexer import TypeScriptIndexer
-
-__version__ = TypeScriptIndexer.version
 
 __all__ = ["TypeScriptIndexer", "__version__"]

@@ -16,7 +16,7 @@ import tree_sitter_kotlin
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_kotlin._version import __version__
 
 SCHEME = "scip-kotlin"
 LANG = "kotlin"
@@ -26,7 +26,7 @@ _KT_LANG = tree_sitter.Language(tree_sitter_kotlin.language())
 
 class KotlinIndexer:
     name: ClassVar[str] = "kotlin"
-    version: ClassVar[str] = package_version("codemap-kotlin")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.kt", "*.kts"]
     languages: ClassVar[list[str]] = [LANG]
 

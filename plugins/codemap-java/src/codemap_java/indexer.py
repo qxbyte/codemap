@@ -29,7 +29,7 @@ import tree_sitter_java
 from codemap.core.models import Annotation, Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_java._version import __version__
 
 SCHEME = "scip-java"
 LANG = "java"
@@ -48,7 +48,7 @@ _TYPE_DECLS = frozenset(
 
 class JavaIndexer:
     name: ClassVar[str] = "java"
-    version: ClassVar[str] = package_version("codemap-java")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.java"]
     languages: ClassVar[list[str]] = [LANG]
 

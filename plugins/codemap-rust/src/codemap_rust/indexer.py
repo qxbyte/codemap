@@ -19,7 +19,7 @@ import tree_sitter_rust
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_rust._version import __version__
 
 SCHEME = "scip-rust"
 LANG = "rust"
@@ -29,7 +29,7 @@ _RUST_LANG = tree_sitter.Language(tree_sitter_rust.language())
 
 class RustIndexer:
     name: ClassVar[str] = "rust"
-    version: ClassVar[str] = package_version("codemap-rust")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.rs"]
     languages: ClassVar[list[str]] = [LANG]
 

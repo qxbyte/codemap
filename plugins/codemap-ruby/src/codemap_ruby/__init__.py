@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
+from codemap_ruby._version import __version__
 from codemap_ruby.indexer import RubyIndexer
-
-__version__ = RubyIndexer.version
 
 __all__ = ["RubyIndexer", "__version__"]

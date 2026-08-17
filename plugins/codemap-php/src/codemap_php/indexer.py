@@ -20,7 +20,7 @@ import tree_sitter_php
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_php._version import __version__
 
 SCHEME = "scip-php"
 LANG = "php"
@@ -37,7 +37,7 @@ _TYPE_DECLS: dict[str, str] = {
 
 class PhpIndexer:
     name: ClassVar[str] = "php"
-    version: ClassVar[str] = package_version("codemap-php")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.php"]
     languages: ClassVar[list[str]] = [LANG]
 

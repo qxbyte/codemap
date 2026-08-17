@@ -38,14 +38,14 @@ from typing import Any, ClassVar
 from codemap.core.models import BridgeResult, Edge
 from codemap.core.store import ReadOnlyStore
 from codemap.core.symbol import DescriptorKind, SymbolID
-from codemap.plugin_metadata import package_version
+from codemap_java._version import __version__
 
 __all__ = ["JavaCallResolverBridge"]
 
 
 class JavaCallResolverBridge:
     name: ClassVar[str] = "java_calls"
-    version: ClassVar[str] = package_version("codemap-java")
+    version: ClassVar[str] = __version__
     requires: ClassVar[list[str]] = []
 
     def resolve(self, store: ReadOnlyStore) -> BridgeResult:

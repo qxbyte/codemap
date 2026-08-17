@@ -7,8 +7,7 @@ host CodeMap CLI.
 
 from __future__ import annotations
 
+from codemap_javascript._version import __version__
 from codemap_javascript.indexer import JavaScriptIndexer
-
-__version__ = JavaScriptIndexer.version
 
 __all__ = ["JavaScriptIndexer", "__version__"]

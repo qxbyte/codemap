@@ -37,7 +37,7 @@ import tree_sitter_javascript
 from codemap.core.models import Diagnostic, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_vue._version import __version__
 from codemap_vue.sfc import ScriptBlock, extract_script_blocks
 
 SCHEME = "scip-vue"
@@ -57,7 +57,7 @@ except ImportError:  # pragma: no cover - exercised in integration only
 
 class VueIndexer:
     name: ClassVar[str] = "vue"
-    version: ClassVar[str] = package_version("codemap-vue")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.vue"]
     languages: ClassVar[list[str]] = [LANG]
 

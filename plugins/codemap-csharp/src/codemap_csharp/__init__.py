@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
+from codemap_csharp._version import __version__
 from codemap_csharp.indexer import CSharpIndexer
-
-__version__ = CSharpIndexer.version
 
 __all__ = ["CSharpIndexer", "__version__"]

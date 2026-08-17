@@ -18,7 +18,7 @@ import tree_sitter_bash
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_bash._version import __version__
 
 SCHEME = "scip-bash"
 LANG = "bash"
@@ -29,7 +29,7 @@ _DECLARATION_KEYWORDS = frozenset({"readonly", "declare", "export", "local", "ty
 
 class BashIndexer:
     name: ClassVar[str] = "bash"
-    version: ClassVar[str] = package_version("codemap-bash")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.sh", "*.bash", "*.bats"]
     languages: ClassVar[list[str]] = [LANG]
 

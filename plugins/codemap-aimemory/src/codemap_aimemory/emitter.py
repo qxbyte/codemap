@@ -39,7 +39,7 @@ import yaml
 
 from codemap.core.store import ReadOnlyStore
 from codemap.emitters.base import EmitContext, EmitResult
-from codemap.plugin_metadata import package_version
+from codemap_aimemory._version import __version__
 from codemap_aimemory.enrich import load_enrichment
 from codemap_aimemory.global_entities import build_global_entities
 from codemap_aimemory.ids import build_entity_ids
@@ -54,7 +54,7 @@ __all__ = ["AiMemoryEmitter"]
 
 class AiMemoryEmitter:
     name: ClassVar[str] = "ai-memory"
-    version: ClassVar[str] = package_version("codemap-aimemory")
+    version: ClassVar[str] = __version__
 
     def emit(self, store: ReadOnlyStore, ctx: EmitContext) -> EmitResult:
         out_dir = _resolve_out_dir(ctx.output_dir)

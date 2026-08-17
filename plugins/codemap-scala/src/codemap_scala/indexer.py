@@ -17,7 +17,7 @@ import tree_sitter_scala
 from codemap.core.models import Diagnostic, Edge, IndexResult, Range, Symbol
 from codemap.core.symbol import Descriptor, DescriptorKind, SymbolID
 from codemap.indexers.base import IndexContext
-from codemap.plugin_metadata import package_version
+from codemap_scala._version import __version__
 
 SCHEME = "scip-scala"
 LANG = "scala"
@@ -27,7 +27,7 @@ _SCALA_LANG = tree_sitter.Language(tree_sitter_scala.language())
 
 class ScalaIndexer:
     name: ClassVar[str] = "scala"
-    version: ClassVar[str] = package_version("codemap-scala")
+    version: ClassVar[str] = __version__
     file_patterns: ClassVar[list[str]] = ["*.scala", "*.sc"]
     languages: ClassVar[list[str]] = [LANG]
 
